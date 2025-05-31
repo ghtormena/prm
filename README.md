@@ -147,7 +147,7 @@ Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descri
 
 
 <p align="center">
-  <img src="Images/foud_flag.png" alt="Exemplo de rota de exploração">
+  <img src="Images/bandeira.png" alt="Exemplo de rota de exploração" width="600">
 </p>
 
 ### 3. Aproximação da bandeira (NAVIGANDO_PARA_BANDEIRA E POSICIONANDO_PARA_COLETA)
@@ -236,8 +236,9 @@ ros2 run prm flag_servo
 source install/setup.sh
 ros2 run prm mission_manager
 
-Nota: O launch demora por volta de 20 segundos para inicializar todos os pacotes. Dessa forma, aguarde um tempo antes de rodar os nós da missão.
-- Ao rodar o script do mission manager, alguns warnings aarecem. Aguarde alguns segundos que vai dar certo.
+#Nota: O launch demora por volta de 20 segundos para inicializar todos os pacotes. Dessa forma, aguarde um tempo antes de rodar os nós da missão.
+= Ao rodar o script do mission manager, alguns warnings aparecem. Aguarde alguns segundos até estabilizar e a exploração ser iniciada.
+# Qualquer dúvida ou erros encontrados, falar com os membros do grupo.
 
 ```
 
