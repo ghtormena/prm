@@ -7,14 +7,14 @@ Projeto para o **Trabalho Avaliado 1 – Robôs Móveis**: um robô autônomo qu
 ambiente, detecta uma bandeira e se posiciona para capturá-la, usando **ROS 2 Humble**.
 
 <p align="center">
-  <img src="assets/cover.gif" alt="Demonstração da missão completa" width="800">
+  <img src="Images/Read_to_catch.png" alt="Demonstração da missão completa">
 </p>
 
 <div align="center">
 
 [![ROS 2 Humble](https://img.shields.io/badge/ROS%202-Humble-blue.svg)](https://www.ros.org/)
 [![Build](https://img.shields.io/badge/build-colcon-brightgreen)](#como-compilar-e-rodar-)
-[![License](https://img.shields.io/github/license/SEU_USUARIO/mission-ros2.svg)](LICENSE)
+[![License](https://img.shields.io/github/license/Vinicius-GN/Projeto_PRM.svg)](LICENSE)
 
 </div>
 
@@ -26,7 +26,6 @@ ambiente, detecta uma bandeira e se posiciona para capturá-la, usando **ROS 2 H
 • [Estratégia](#estratégia-adotada🎯)
 • [Pacotes ROS 2](#pacotes-ros-2-utilizados)
 • [Arquitetura & Algoritmos](#arquitetura--algoritmos-⚙️)
-• [Resultados](#resultados-📊)
 • [Compilar e Rodar](#como-compilar-e-rodar-🚀)
 • [Contribuição](#contribuição-🤝)
 • [Licença](#licença-📄)
@@ -68,10 +67,6 @@ mission-ros2/
 | **`scripts/flag_servo.py`** | Nó Python | Câmera Segmentada + LiDAR: alinha e aproxima-se da bandeira, publica conclusão. | `/robot_cam/colored_map`, `sensor_msgs/LaserScan`, `/cmd_vel`, `/flag_servo_enable`, `/flag_servo_arrived` |
 | **`launch/launch_integrado.launch.py`** | Launch file | Sobe SLAM Toolbox, Nav2 stack, launch `inicializa_simulcao.launch.py` e `carrega_robo.launch.py`. | `ros2 launch` |
 | *`description/robot.urdf.xacro`** | Modelo | Robô diferencial com câmera, LiDAR e IMU; frames TF corretos. | `robot_state_publisher`, `gazebo_ros_pkgs` |
-
-<p align="center">
-  <img src="assets/exploration_path.png" alt="Exemplo de rota de exploração" width="600">
-</p>
 
 ---
 
@@ -142,8 +137,18 @@ Durante esta etapa, o principal objetivo é explorar o mapa em busca da bandeira
 3. Selecionar o ponto de fronteira **mais distante** do robô, de forma a garantir uma cobertura maior do mapa.
 4. Enviar esse ponto ao *action server*: **Nav2 `FollowWaypoints`**
 
+
+<p align="center">
+  <img src="Images/Mapping2.png" alt="Exemplo de rota de exploração">
+</p>
+
 ### 2. Detecção robusta da bandeira (BANDEIRA DETECTADA)
 Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descrito, um callback do tópico da câmera de segmentação extrai a imagem e segmenta a região de interesse no espaço de cores HSV que corresponde à cor da bandeira **[(HSV_MIN = (86, 0, 6) HSV_MAX = (94, 255, 255)]**. O frame chega em BGR, é convertido para HSV com `cv_bridge` e recebe **threshold**. Então. uma heurística de área (> 1750 px) é aplicada para evitar falsos-positivos oriundos de ruídos, garantindo que a exploração pare quando a bandeira for encontrada e estiver suficientemente presente na imagem do robô
+
+
+<p align="center">
+  <img src="Images/foud_flag.png" alt="Exemplo de rota de exploração">
+</p>
 
 ### 3. Aproximação da bandeira (NAVIGANDO_PARA_BANDEIRA E POSICIONANDO_PARA_COLETA)
 Esta parte da estratégia é controlada pelo nó `flag_servo`, que fica aguarando a publicação de "true" no tópico "/flag_servo_enable' para iniciar a busca da bandeira. O robô então extrai a imagem da bandeira segmentada da mesma forma que na estratégia anterior, calcula o centróide da bandeira na imagem e faz um controle proporcional para manter o alinhamento com a bandeira, enquanto verifica a distância dos feixes frontais do LIDAR.
@@ -156,6 +161,11 @@ Enquanto o contorno está presente:
 
 ### 4. Retorno à base  
 O primeiro TF `map → odom` capturado vira `home_pose` para voltar para a base. Após alinhamento, a máquina de estados envia esse `PoseStamped` ao **Nav2 NavigateToPose**; ao receber status **`SUCCEEDED`** a missão termina com o robô já na base.
+
+
+<p align="center">
+  <img src="Images/Returning_base.png" alt="Exemplo de rota de exploração">
+</p>
 
 ---
 
@@ -197,20 +207,6 @@ Ciclo de controle a cada 100 ms:
 * A primeira transformação **`map → odom`** recebida é armazenada como `home_pose`.  
 * No estado **RETORNO**, esse `PoseStamped` é enviado como meta única ao **Nav2 NavigateToPose**.  
 * Ao receber o status **`SUCCEEDED`**, o nó `mission_manager` encerra a missão.
-
----
-
-## Resultados 📊
-
-| Métrica                        | Média ± DP     | Condições de teste                                   |
-|--------------------------------|----------------|------------------------------------------------------|
-| Tempo até detectar a bandeira  | **47 s ± 6 s** | 10 execuções – mapa padrão                           |
-| Tempo de servo-alinhamento     | **8.1 s ± 1.4 s** | Erro lateral < 3 cm; distância final ≈ 0.33 m       |
-| Missões concluídas com sucesso | **100 % (10/10)** | Inclui cenário extra com obstáculo móvel            |
-
-<p align="center">
-  <img src="assets/servo_closeup.png" alt="Câmera durante o alinhamento final" width="400">
-</p>
 
 ---
 
