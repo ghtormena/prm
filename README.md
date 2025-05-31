@@ -40,15 +40,20 @@ ambiente, detecta uma bandeira e se posiciona para capturá-la, usando **ROS 2 H
 
 ```bash
 mission-ros2/
+├── config/
+├── description/           # Modelo Xacro do robô
 ├── launch/                # Arquivos .launch.py
-├── params/                # YAML de parâmetros
-├── scripts/
+│   ├── launch_integrado.launch.py #Arquivo de incicialização da simulação e dos pacotes de mapeamento e navegação.
+├── models/
+├── prm/
 │   ├── mission_manager.py # Máquina de estados global
 │   └── flag_servo.py      # Servo-visão/LiDAR
-├── urdf/                  # Modelo Xacro do robô
-├── meshes/                # Recursos 3D
-├── assets/                # GIFs & imagens usadas no README
-├── package.xml
+├── resource/                # Recursos 3D
+├── rviz/
+├── test/
+├── world/
+├── images/                
+├── package.xml            # Imagens para o README
 ├── setup.py
 └── README.md
 ```
