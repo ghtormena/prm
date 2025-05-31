@@ -1,0 +1,105 @@
+# nav2_params.yaml
+
+###############################################################################
+# Parâmetros gerais
+###############################################################################
+use_sim_time: true                              # importante para simulação
+autostart: true                                 # inicia todos os servers automaticamente
+
+###############################################################################
+# 1) AMCL (localização probabilística)
+###############################################################################
+amcl:
+  ros__parameters:
+    use_sim_time: true
+    # tópicos e frames
+    scan_topic: "/scan"                         # ajuste se você tiver outro nome de laser
+    odom_topic: "/odom"                         # aqui aponte para a sua odometria customizada
+    odom_frame_id: "odom"
+    base_frame_id: "base_link"
+    # filtros KLD (exemplo)
+    min_particles: 500
+    max_particles: 2000
+    kld_err: 0.05
+    kld_z: 0.99
+    update_min_d: 0.2
+    update_min_a: 0.2
+    resample_interval: 1
+    # broadcasting TF
+    transform_tolerance: 1.0
+    recovery_alpha_slow: 0.0010
+    recovery_alpha_fast: 0.1
+
+###############################################################################
+# 2) map_server (se for usar mapa estático)
+###############################################################################
+map_server:
+  ros__parameters:
+    use_sim_time: true
+    yaml_filename: "/path/para/seu/mapa.yaml"  # coloque o caminho do seu mapa
+    topic_name: "map"
+
+###############################################################################
+# 3) planner_server (planejamento global)
+###############################################################################
+planner_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_planner_frequency: 20.0
+    planner_plugins: ["GridBased"]
+    GridBased:
+      plugin: "nav2_navfn_planner/NavfnPlanner"
+
+###############################################################################
+# 4) controller_server (planejamento local / controle)
+###############################################################################
+controller_server:
+  ros__parameters:
+    use_sim_time: true
+    expected_controller_frequency: 20.0
+    controller_plugins: ["FollowPath"]
+    FollowPath:
+      plugin: "nav2_controller/FollowPath"
+      tolerance: 0.25          # distância para considerar objetivo alcançado
+      use_final_approach_orientation: true
+      max_lin_vel: 0.5         # ajuste conforme o robô
+      max_ang_vel: 1.0
+
+###############################################################################
+# 5) bt_navigator (flow de comportamento)
+###############################################################################
+bt_navigator:
+  ros__parameters:
+    use_sim_time: true
+    default_bt_xml_filename: "behavior_trees/nav2_bt_navigator.xml"
+
+###############################################################################
+# 6) recoveries_server (recuperações em caso de falha)
+###############################################################################
+recoveries_server:
+  ros__parameters:
+    use_sim_time: true
+    recovery_plugins: ["Spin", "BackUp"]
+    Spin:
+      plugin: "nav2_recoveries/Spin"
+      spin_min_duration: 3.0
+      spin_max_duration: 5.0
+    BackUp:
+      plugin: "nav2_recoveries/BackUp"
+      backup_min_dist: 0.1
+      backup_max_dist: 0.3
+
+###############################################################################
+# 7) nav2_lifecycle_manager (auto-gerencia lifecycle dos nodes)
+###############################################################################
+lifecycle_manager:
+  ros__parameters:
+    use_sim_time: true
+    autostart: true
+    node_names:
+      - map_server
+      - planner_server
+      - controller_server
+      - recoveries_server
+      - bt_navigator
+      - amcl
