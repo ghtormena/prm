@@ -64,16 +64,26 @@ mission-ros2/
 
 | Componente (pasta/arquivo) | Tipo | Responsabilidade principal | Tópicos / recursos ROS 2 usados |
 |-----------------------------|------|----------------------------|---------------------------------|
-| **`scripts/mission_manager.py`** | Nó Python | Máquina de estados global (Explorar → Servo → Retorno). Gera metas ao Nav2, escuta `/flag_servo_arrived`, salva pose inicial. | `nav2_msgs/action/FollowWaypoints`, `geometry_msgs/PoseStamped`, `tf2_ros`, `/map`, `/odom` |
-| **`scripts/flag_servo.py`** | Nó Python | Servo-visão + LiDAR: alinha e aproxima-se da bandeira, publica conclusão. | `/camera/image_raw`, `sensor_msgs/LaserScan`, `/cmd_vel`, `/flag_servo_enable`, `/flag_servo_arrived` |
-| **`launch/mission.launch.py`** | Launch file | Sobe SLAM Toolbox, Nav2 stack, nós de missão e RViz em um único comando. | `ros2 launch` |
-| **`params/`** | Arquivos YAML | Configuração do Nav2 (planner = A*, controller = DWB), SLAM Toolbox e parâmetros de visão (HSV, ganhos do servo). | parâmetros dinâmicos (`rcl_yaml_param_parser`) |
-| **`urdf/` + `meshes/`** | Modelo | Robô diferencial com câmera, LiDAR e IMU; frames TF corretos. | `robot_state_publisher`, `gazebo_ros_pkgs` |
-| **`prm_gazebo` (mundo)** | Simulação | Mundo base do TA1 com bandeira e obstáculos; fornece plugins de sensores. | `gazebo_ros`, `/world` plugins |
+| **`prm/mission_manager.py`** | Nó Python | Máquina de estados global (Explorar → Econtra Bandeira → Flag_servo (aproximação) → Retorno à base). Salva pose inicial, gera metas ao Nav2 para exploração do mapa, chama flag_servo ao encontrar a bandeira, escuta `/flag_servo_arrived` para voltar à base. | `nav2_msgs/action/FollowWaypoints`, `geometry_msgs/PoseStamped`, `tf2_ros`, `/map`, `/odom` |
+| **`scripts/flag_servo.py`** | Nó Python | Câmera Segmentada + LiDAR: alinha e aproxima-se da bandeira, publica conclusão. | `/robot_cam/colored_map`, `sensor_msgs/LaserScan`, `/cmd_vel`, `/flag_servo_enable`, `/flag_servo_arrived` |
+| **`launch/launch_integrado.launch.py`** | Launch file | Sobe SLAM Toolbox, Nav2 stack, launch `inicializa_simulcao.launch.py` e `carrega_robo.launch.py`. | `ros2 launch` |
+| *`description/robot.urdf.xacro`** | Modelo | Robô diferencial com câmera, LiDAR e IMU; frames TF corretos. | `robot_state_publisher`, `gazebo_ros_pkgs` |
 
 <p align="center">
   <img src="assets/exploration_path.png" alt="Exemplo de rota de exploração" width="600">
 </p>
+
+---
+
+## Pacotes ROS 2 utilizados
+
+| Categoria                     | Pacote / ferramenta                                         | Função na solução                                                                         |
+|-------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------------------------------|
+| **Localização & Mapeamento**  | `slam_toolbox`                                              | SLAM síncrono 2 D; publica `/map` e TF `map ↔ odom`                                       |
+| **Navegação**                 | `nav2_bt_navigator`, `nav2_controller`, `nav2_planner`      | Planejamento global (A*) e controle local (DWB)                                           |
+| **Visão**                     | `image_transport`, `cv_bridge`, `sensor_msgs`              | Converte frame da câmera do Gazebo → OpenCV para segmentar a bandeira                     |
+| **Comunicação**               | `rclpy`, `tf2_ros`                                          | Nó Python e transformações de quadros                                                    |
+| **Simulação**                 | `gazebo_ros`, `prm_gazebo`                                  | Carrega o mundo base, sensores de câmera e LiDAR                                          |
 
 
 ---
@@ -90,46 +100,62 @@ stateDiagram-v2
 
     %% Anotações de cada estado
     note right of EXPLORANDO
-      Frontier-based exploration\nNav2 FollowWaypoints
+      Frontier-based exploration
+      Nav2 FollowWaypoints
     end note
 
     note right of SERVO
-      Vision + LiDAR servoing\nControle (v,ω) proporcional
+      Vision + LiDAR leituras
+      Controle (v,ω) proporcional para alinhamento
     end note
 
     note right of RETORNO
-      Goal = home_pose\nNav2 NavigateToPose
+      Goal = home_pose
+      Nav2 NavigateToPose
     end note
 ```
 
-## Pacotes ROS 2 utilizados
-
-| Categoria                     | Pacote / ferramenta                                         | Função na solução                                                                         |
-|-------------------------------|-------------------------------------------------------------|-------------------------------------------------------------------------------------------|
-| **Localização & Mapeamento**  | `slam_toolbox`                                              | SLAM síncrono 2 D; publica `/map` e TF `map ↔ odom`                                       |
-| **Navegação**                 | `nav2_bt_navigator`, `nav2_controller`, `nav2_planner`      | Planejamento global (A*) e controle local (DWB)                                           |
-| **Visão**                     | `image_transport`, `cv_bridge`, `sensor_msgs`              | Converte frame da câmera do Gazebo → OpenCV para segmentar a bandeira                     |
-| **Comunicação**               | `rclpy`, `tf2_ros`                                          | Nó Python e transformações de quadros                                                    |
-| **Simulação**                 | `gazebo_ros`, `prm_gazebo`                                  | Carrega o mundo base, sensores de câmera e LiDAR                                          |
 
 ---
 
 ## Estratégia detalhada
 
-### 1. Exploração guiada por fronteiras  
-*Incremental Frontier Exploration* implementado no **`mission_manager.py`**: a cada atualização do cost-map obtém-se células fronteira, aplica-se o filtro de segurança e escolhe-se a **mais distante** do robô. Essa meta única é enviada ao action **Nav2 `FollowWaypoints`**, simplificando a árvore de comportamento padrão.
+### 0. Utilização do SLAM toolbox
+Considerando a proposta apresentada pelo trabalho de permitir uma navegação universal em ambientes desconhecidos, a ideia inicial foi adotar o uso do SLAM (Simultanious Localization and Mapping), de forma a permitir que houvesse uma representação em ocuppancy grid do ambiente e facilitando a posterior navegação do robô pelo ambiente por meio de algorimos de planejamento de trajetória. Para isso, foi utilizado o pacote do Slam_ToolBox, que oferece funcionalidades de mapeamento síncrono/assíncrono com otimização em tempo real.
 
-### 2. Detecção robusta da bandeira  
-A malha da bandeira recebe a cor exclusiva *ciano* no Gazebo. O frame chega em BGR, é convertido para HSV com `cv_bridge` e recebe **threshold**. A heurística da área (> 1750 px) evita falsos-positivos oriundos de ruídos/reflexos.
+### 1. Exploração guiada por fronteiras (`EXPLORANDO`)
+Durante esta etapa, o principal objetivo é explorar o mapa em busca da bandeira, de forma autônoma e baseando-se em algoritmos de planejamento de trajetória. Para isso, utilizamos uma adaptação nossa do algoritmo *Incremental Frontier Exploration* implementado no **`mission_manager.py`**, cuja implementação é definida abaixo. O resultado é a exploração completa do mapa até encontrar a bandeira.
 
-### 3. Servo-controle visual + LiDAR  
+#### Lógica:
+
+- A cada atualização do tópico `/map`, identificam-se as **fronteiras** entre regiões mapeadas e não mapeadas.
+- Aplica-se um filtro de segurança que ignora pontos muito próximos de obstáculos.
+- As células são classificadas da seguinte forma:
+  - `-1`: células ainda não mapeadas
+  - `0`: células livres
+  - `100`: células ocupadas
+
+#### Fluxo do Algoritmo:
+
+1. Detectar pontos de fronteiras entre áreas conhecidas e desconhecidas.
+2. Aplicar filtro de segurança baseado na distância a obstáculos.
+3. Selecionar o ponto de fronteira **mais distante** do robô, de forma a garantir uma cobertura maior do mapa.
+4. Enviar esse ponto ao *action server*: **Nav2 `FollowWaypoints`**
+
+### 2. Detecção robusta da bandeira (BANDEIRA DETECTADA)
+Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descrito, um callback do tópico da câmera de segmentação extrai a imagem e segmenta a região de interesse no espaço de cores HSV que corresponde à cor da bandeira **[(HSV_MIN = (86, 0, 6) HSV_MAX = (94, 255, 255)]**. O frame chega em BGR, é convertido para HSV com `cv_bridge` e recebe **threshold**. Então. uma heurística de área (> 1750 px) é aplicada para evitar falsos-positivos oriundos de ruídos, garantindo que a exploração pare quando a bandeira for encontrada e estiver suficientemente presente na imagem do robô
+
+### 3. Aproximação da bandeira (NAVIGANDO_PARA_BANDEIRA E POSICIONANDO_PARA_COLETA)
+Esta parte da estratégia é controlada pelo nó `flag_servo`, que fica aguarando a publicação de "true" no tópico "/flag_servo_enable' para iniciar a busca da bandeira. O robô então extrai a imagem da bandeira segmentada da mesma forma que na estratégia anterior, calcula o centróide da bandeira na imagem e faz um controle proporcional para manter o alinhamento com a bandeira, enquanto verifica a distância dos feixes frontais do LIDAR.
+Resumo do algoritmo:
 Enquanto o contorno está presente:  
 * **ω** proporcional ao erro do centróide (pixels).  
 * **v** decrescente com a média dos 90 ° frontais do LiDAR (*range-keeper*).  
-* Quando `|erro| < 10 px` **e** distância `< 0.35 m` → publica `/flag_servo_arrived`.
+* Quando `|erro| < 10 px` **e** distância `< 0.35 m` → Entra num alinhamento final, para garantir que está completamente alinhado à bandeira.
+* publica `/flag_servo_arrived`.
 
 ### 4. Retorno à base  
-O primeiro TF `map → odom` capturado vira `home_pose`. Após alinhamento, a máquina de estados envia esse `PoseStamped` ao **Nav2 NavigateToPose**; ao receber status **`SUCCEEDED`** a missão termina.
+O primeiro TF `map → odom` capturado vira `home_pose` para voltar para a base. Após alinhamento, a máquina de estados envia esse `PoseStamped` ao **Nav2 NavigateToPose**; ao receber status **`SUCCEEDED`** a missão termina com o robô já na base.
 
 ---
 
@@ -149,7 +175,7 @@ hsv  = cv.cvtColor(cv_img, cv.COLOR_BGR2HSV)
 mask = cv.inRange(hsv, HSV_MIN, HSV_MAX)
 cnts, _ = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 ```
-### 3. Servo-visão + LiDAR (`flag_servo.py` @ 10 Hz)
+### 3. Servo-visão + LiDAR (`flag_servo.py`)
 
 | Constante       | Valor      | Função / Observação                      |
 |-----------------|------------|------------------------------------------|
@@ -165,8 +191,6 @@ Ciclo de controle a cada 100 ms:
 3. **Controle de rotação** – ω proporcional ao erro (ganho `Kp`).  
 4. **Controle de avanço** – `v` reduz‐se gradualmente conforme a média dos 90 ° frontais do LiDAR indica aproximação ao alvo; jamais cai abaixo de 0.06 m/s até parar em `stop_distance`.  
 5. **Condição de parada** – quando `|erro| < 10 px` **e** distância `< 0.35 m`, publica `/flag_servo_arrived`, sinalizando à máquina de estados que o robô está alinhado e posicionado.
-
----
 
 ### 4. Retorno à base
 
