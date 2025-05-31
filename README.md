@@ -214,24 +214,31 @@ Ciclo de controle a cada 100 ms:
 
 ```bash
 # 1. Clonar
-mkdir -p ~/ros2_ws/src
 cd ~/ros2_ws/src
-git clone https://github.com/SEU_USUARIO/mission-ros2.git
+git clone https://github.com/Vinicius-GN/prm/
 
 # 2. Compilar
 cd ~/ros2_ws
 source /opt/ros/humble/setup.bash
 rosdep install --from-paths src --ignore-src -r -y
-colcon build --symlink-install
-source install/setup.bash
+colcon build
+source install/setup.sh
 
 # 3. Executar simulação
 # Terminal A — mundo + robô
-ros2 launch prm_gazebo world.launch.py
+ros2 launch prm launch_integrado.launch.py
 
-# Terminal B — Nav2 + missão
-source ~/ros2_ws/install/setup.bash
-ros2 launch mission_bringup mission.launch.py
+# Terminal D — Lógica do Servo
+source install/setup.sh
+ros2 run prm flag_servo
+
+# Terminal C — Nav2 + missão
+source install/setup.sh
+ros2 run prm mission_manager
+
+Nota: O launch demora por volta de 20 segundos para inicializar todos os pacotes. Dessa forma, aguarde um tempo antes de rodar os nós da missão.
+- Ao rodar o script do mission manager, alguns warnings aarecem. Aguarde alguns segundos que vai dar certo.
+
 ```
 
 ---
@@ -243,17 +250,11 @@ Abra uma **Issue** para discutir melhorias ou envie o **PR** diretamente.
 
 ---
 
-## Licença 📄
-
-Distribuído sob a **MIT License** — consulte o arquivo [`LICENSE`](LICENSE) para detalhes.
-
----
-
 ## Membros 👥
 
-| Nome                  | Número USP | GitHub                                 | Responsabilidades principais                   |
-|-----------------------|------------|----------------------------------------|-----------------------------------------------|
-| Fulano da Silva       | 12345678   | [@fulano](https://github.com/fulano)   | Máquina de estados, integração Nav2           |
-| Beltrano Pereira      | 23456789   | [@beltrano](https://github.com/beltrano)| Visão computacional, servo-controle           |
-| Ciclano Souza         | 34567890   | [@ciclano](https://github.com/ciclano) | Modelagem URDF, configuração Gazebo           |
+| Nome                  | Número USP | GitHub                                 |
+|-----------------------|------------|----------------------------------------|
+| Vinicius Gustierrez Neves      | 14749363   | [@Vinicius-GN](https://github.com/Vinicius-GN)|
+| Beltrano Pereira      | 23456789   | [@beltrano](https://github.com/beltrano)|
+| Ciclano Souza         | 34567890   | [@ciclano](https://github.com/ciclano)|
 
