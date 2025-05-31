@@ -177,7 +177,7 @@ class FlagServo(Node):
             twist.angular.z = 0.2 if self.turn_left else -0.2
 
         # log e publicação do comando
-        self.get_logger().debug(
+        self.get_logger().info(
             f'Dist:{self.dist_front:.2f}  flag_x:{self.flag_x}  '
             f'lin:{twist.linear.x:.2f}  ang:{twist.angular.z:.3f}'
         )
