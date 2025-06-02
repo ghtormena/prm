@@ -26,6 +26,7 @@ ambiente, detecta uma bandeira e se posiciona para capturá-la, usando **ROS 2 H
 • [Estratégia](#estratégia-adotada🎯)
 • [Pacotes ROS 2](#pacotes-ros-2-utilizados)
 • [Arquitetura & Algoritmos](#arquitetura--algoritmos-⚙️)
+• [Requisitos Atendidos](#requisitos-atendidos-✅)
 • [Compilar e Rodar](#como-compilar-e-rodar-🚀)
 • [Contribuição](#contribuição-🤝)
 • [Licença](#licença-📄)
@@ -210,6 +211,51 @@ Ciclo de controle a cada 100 ms:
 
 ---
 
+## Requisitos Atendidos ✅
+
+Esta seção descreve como os requisitos propostos para o trabalho foram integralmente atendidos ao longo do desenvolvimento do sistema.
+
+### ✅ Navegação e Exploração do Ambiente
+- O robô é capaz de navegar autonomamente em ambientes desconhecidos com o uso do **SLAM Toolbox**, construindo um mapa 2D em tempo real.
+- A exploração do ambiente é guiada por uma estratégia de **fronteiras** (`Frontier-Based Exploration`) customizada, presente no nó `mission_manager.py`.
+- Ao encontrar a bandeira, o robô retorna com sucesso à sua posição inicial utilizando `Nav2 NavigateToPose`.
+
+### ✅ Detecção e Aproximação da Bandeira
+- A bandeira é detectada por visão computacional com base em segmentação de cor HSV.
+- O nó `flag_servo.py` realiza o alinhamento e aproximação da bandeira utilizando:
+  - Controle proporcional de rotação com base na posição da bandeira na imagem.
+  - Controle de avanço baseado nas leituras frontais do **LiDAR**.
+- Quando a bandeira está centralizada e próxima, o robô sinaliza a conclusão da etapa de aproximação.
+
+### ✅ Execução Autônoma da Missão
+- Uma **máquina de estados** controla todas as etapas da missão:
+  1. Exploração do ambiente.
+  2. Detecção da bandeira.
+  3. Aproximação com servo-visão.
+  4. Retorno automático à base (posição inicial).
+- A missão é completamente autônoma, sem necessidade de intervenção manual.
+
+---
+
+## 🛠️ Redução Dimensional do Robô (Extra)
+
+Como melhoria adicional ao projeto, realizamos uma redução proporcional nas dimensões do robô, facilitando sua locomoção em passagens estreitas e otimizando a navegação:
+
+| Parâmetro        | Valor Original | Valor Atual |
+|------------------|----------------|-------------|
+| `base_width`     | 0.31 m         | **0.155 m** |
+| `base_length`    | 0.42 m         | **0.21 m**  |
+| `wheel_ygap`     | 0.025 m        | **0.0125 m**|
+| `wheel_xoff`     | 0.12 m         | **0.06 m**  |
+| `caster_xoff`    | 0.14 m         | **0.07 m**  |
+| `camera_joint`   | (0.215 0 0.05) | **(0.105 0 0.05)** |
+
+> As demais dimensões (altura, rodas, sensores, IMU) foram mantidas para preservar o comportamento físico e funcional do robô original.
+
+Além disso, o sistema já está preparado para **retornar automaticamente à base** após a coleta, utilizando a pose salva no início da missão.
+
+---
+
 ## Como compilar e rodar 🚀
 
 ```bash
@@ -256,6 +302,6 @@ Abra uma **Issue** para discutir melhorias ou envie o **PR** diretamente.
 | Nome                  | Número USP | GitHub                                 |
 |-----------------------|------------|----------------------------------------|
 | Vinicius Gustierrez Neves      | 14749363   | [@Vinicius-GN](https://github.com/Vinicius-GN)|
-| Beltrano Pereira      | 23456789   | [@beltrano](https://github.com/beltrano)|
-| Ciclano Souza         | 34567890   | [@ciclano](https://github.com/ciclano)|
+| Giovanna Herculano Tormena      | 12674335   | |
+| Guilheme Rebecche         | 12550107   | |
 
