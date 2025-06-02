@@ -61,7 +61,8 @@ setup(
             'tartaruga = prm.controle_tartaruga:main',
             'ground_truth_odometry = prm.ground_truth_odometry:main',
             'controle_robo = prm.controle_robo:main',
-            'robo_mapper = prm.robo_mapper:main'
+            'robo_mapper = prm.robo_mapper:main',
+            'controle_robo_novo = prm.controle_robo_novo:main'
         ],
     },
 )
