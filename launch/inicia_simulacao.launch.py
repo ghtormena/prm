@@ -30,7 +30,9 @@ def generate_launch_description():
     pkg_share = FindPackageShare("prm").find("prm")
 
     # Nome do arquivo do mundo (SDF) a ser carregado
+#    world_file_name = 'arena_lab_v1.sdf'
     world_file_name = 'arena.sdf'
+#    world_file_name = 'spherical_coordinates.sdf'
 
     # Caminho completo para o arquivo do mundo
     world_path = PathJoinSubstitution([
@@ -49,6 +51,8 @@ def generate_launch_description():
 #    world_path='/usr/share/ignition/ignition-gazebo6/worlds/visualize_lidar.sdf'
 #    world_path='/usr/share/ignition/ignition-gazebo6/worlds/segmentation_camera.sdf'
 #    world_path='/usr/share/ignition/ignition-gazebo6/worlds/boundingbox_camera.sdf'
+#    world_path='/usr/share/ignition/ignition-gazebo6/worlds/spherical_coordinates.sdf'
+#    world_path='/usr/share/ignition/ignition-gazebo6/worlds/rolling_shapes.sdf'
 
     # ------------------------------------------------------
     # Inicialização do simulador Gazebo

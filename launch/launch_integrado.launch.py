@@ -23,12 +23,6 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(world_launch)
     )
 
-    static_tf = Node(
-    package='tf2_ros', executable='static_transform_publisher',
-    arguments=['0','0','0.1','0','0','0','base_link','lidar_link'],
-    output='screen'
-    )
-
     carrega_robo = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(robot_launch)
     )
@@ -36,31 +30,25 @@ def generate_launch_description():
     slam_toolbox = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([slam_share, 'launch', 'online_async_launch.py'])
-        )
-        # launch_arguments={
-        #     'use_sim_time': 'true',
-        #     'slam_params_file': slam_params,
-        # }.items()
+        ),
+        launch_arguments={
+            'use_sim_time': 'true',
+        }.items()
     )
 
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([nav2_share, 'launch', 'navigation_launch.py'])
-        )
-        # launch_arguments={
-        #     # AMCL desligado; Nav2 só usa o TF do SLAM Toolbox
-        #     'slam'        : 'false',
-        #     'map'         : '',          # não carregue mapa estático
-        #     'use_sim_time': 'true',
-        #     'autostart'   : 'true',
-        #     'params_file' : nav2_params,
-        # }.items()
+        ),
+        launch_arguments={
+            'use_sim_time': 'true',
+        }.items()
     )
 
     # ─────────────── ordem de arranque ────────────────
     return LaunchDescription([
         TimerAction(period=2.0, actions=[inicia_simulacao]),
-        TimerAction(period=5.0, actions=[carrega_robo, static_tf]),
+        TimerAction(period=5.0, actions=[carrega_robo]),
         TimerAction(period=10.0, actions=[nav2]),   
         TimerAction(period=15.0, actions=[slam_toolbox]),
     ])

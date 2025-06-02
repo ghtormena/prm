@@ -103,8 +103,8 @@ class FlagServo(Node):
         hsv = cv2.cvtColor(cv_img, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, HSV_MIN, HSV_MAX)
 
-        # Ignora os 30% de cima:
-        cutoff = int(0.3 * h)
+        # Ignora os 50% de cima:
+        cutoff = int(0.5 * h)
         mask[:cutoff, :] = 0   # tudo acima de cutoff vira 0
 
         # continua como antes
@@ -145,14 +145,14 @@ class FlagServo(Node):
             # cálculo do erro de centralização
             center = self.img_w // 2
             error  = self.flag_x - center
-            Kp     = 0.001
+            Kp     = 0.003
 
             # controle proporcional para alinhar
             twist.angular.z = -Kp * error
 
             # parâmetros
             ALIGN_TOL = 10     # pixels de tolerância para centralização
-            DIST_STOP = 0.35  # m para considerar "perto"
+            DIST_STOP = 0.45  # m para considerar "perto"
 
             if self.dist_front < DIST_STOP:
                 # está suficientemente perto → verificar alinhamento
@@ -174,7 +174,7 @@ class FlagServo(Node):
             # se não vê a bandeira, gira para buscá-la
             self.get_logger().info('🔍 Bandeira não vista, girando...')
             twist.linear.x  = 0.0
-            twist.angular.z = 0.2 if self.turn_left else -0.2
+            twist.angular.z = 0.2 
 
         # log e publicação do comando
         self.get_logger().info(

@@ -35,11 +35,18 @@ def generate_launch_description():
     # ------------------------------------------------------
     # Publica as transformações dos links do robô com base no URDF.
     # Requer o parâmetro 'robot_description' com o conteúdo do modelo.
+    diff_drive_params = PathJoinSubstitution([
+        FindPackageShare("prm"),
+        "config",
+        "diff_drive_controller_velocity.yaml"
+    ])
+    
     robot_state_publisher_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
         parameters=[
-            {"robot_description": robot_urdf_final}
+            {"robot_description": robot_urdf_final},
+            {"use_sim_time": True}
         ],
     )
 
@@ -65,17 +72,12 @@ def generate_launch_description():
 
     # Inicialização do sistema de controle das rodas/motores do robo
     # o controle das rodas depende do estado das juntas
-    start_diff_controller = ExecuteProcess(
-        name="activate_diff_drive_base_controller",
-        cmd=[
-            "ros2",
-            "control",
-            "load_controller",
-            "--set-state",
-            "active",
-            "diff_drive_base_controller",
-        ],
-        shell=False,
+    start_diff_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        name="spawner_diff_drive_base_controller",
+        arguments=["diff_drive_base_controller"],
+        parameters=[diff_drive_params],
         output="screen",
     )
 
@@ -123,6 +125,7 @@ def generate_launch_description():
         name="rviz2",
         output="screen",
         arguments=["-d", rviz_config_file],  # Define o arquivo de configuração a ser carregado
+        parameters=[{"use_sim_time": True}],
     )
 
     # ------------------------------------------------------
@@ -169,10 +172,40 @@ def generate_launch_description():
             # Necessário para controladores como diff_drive_controller
             "/clock@rosgraph_msgs/msg/Clock[ignition.msgs.Clock",
             # Ground Truth de Posicao
-            "/model/prm_robot/pose@geometry_msgs/msg/Pose@ignition.msgs.Pose",
+            "/model/prm_robot/pose@geometry_msgs/msg/Pose[ignition.msgs.Pose",
         ],
         output="screen",
     )
+
+#  Nodo que publica odometria ground truth
+    odom_gt= Node(
+        package="prm",
+        executable="ground_truth_odometry",
+        name="odom_gt",
+        arguments="",
+        output="screen",
+        parameters=[{"use_sim_time": True}],
+    )
+
+#  Nodo que publica o mapa
+    robo_mapper= Node(
+        package="prm",
+        executable="robo_mapper",
+        name="robo_mapper",
+        arguments="",
+        output="screen",
+        parameters=[{"use_sim_time": True}],
+    )
+
+#  Casos vocês queiram carregar o controle do robô junto:
+#  Não esquecer de descomentar a linha no LaunchDescription
+#    controle= Node(
+#        package="prm",
+#        executable="controle_robo",
+#        name="controle_do_robo",
+#        arguments="",
+#        output="screen",
+#    )
 
     # ------------------------------------------------------
     # Definição da descrição completa do lançamento
@@ -194,7 +227,10 @@ def generate_launch_description():
                 on_exit=[start_diff_controller], # Carrega o sistema de controle das rodas/motores
             )
         ),
+        odom_gt,
+        robo_mapper,
         rviz_node,
-        relay_odom, # Nodos de redirecionamento de mensagens
-        relay_cmd_vel
+  #      relay_odom, # Nodos de redirecionamento de mensagens (Estamos usando apenas odom_gt agora)
+        relay_cmd_vel # Nodos de redirecionamento de mensagens
+  #      controle
     ])
