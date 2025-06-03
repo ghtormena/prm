@@ -1,17 +1,21 @@
 # PRM - Programação de Robôs Móveis
 
 **Disciplina SSC0712**  
-Oferecida para os cursos de Engenharia de Computação e áreas afins na **USP São Carlos**
 
-Este repositório contém o material da disciplina *Programação de Robôs Móveis*, focada no desenvolvimento de soluções em robótica móvel utilizando **ROS 2 Humble** e o simulador **Gazebo Fortress**.
+Este repositório contém o Projeto 1 da disciplina *Programação de Robôs Móveis*, focado no desenvolvimento de soluções de navegação autônoma em ambientes simulados utilizando **ROS 2 Humble** e o simulador **Gazebo Fortress**.  
+
+O robô é capaz de identificar uma bandeira, alinhar-se a ela e evitar obstáculos no caminho utilizando LiDAR e visão computacional.
+
+---
 
 ## 📦 Tecnologias utilizadas
 
 - ROS 2 Humble
 - Gazebo Fortress
 - Python
-- RViz / Gazebo GUI
-- [teleop_twist_keyboard](https://github.com/ros2/teleop_twist_keyboard)
+- OpenCV
+- RViz
+- CVBridge
 
 ---
 
@@ -23,7 +27,7 @@ Acesse a pasta `src` do seu workspace ROS 2:
 
 ```bash
 cd ~/ros2_ws/src/
-git clone https://github.com/matheusbg8/prm.git
+git clone https://github.com/ghtormena/prm.git
 ````
 
 ### 2. Instalar dependências
@@ -70,26 +74,26 @@ Em um **novo terminal** (não se esqueça de `source install/local_setup.bash`):
 ros2 launch prm carrega_robo.launch.py
 ```
 
-### 3. Controle automático (demonstração)
+### 3. Controle 
 
 Em outro terminal:
 
 ```bash
-ros2 run prm controle_robo
+ros2 run prm controle_robo_novo
 ```
 
-### 4. **Controle manual (alternativa ao passo 3)**
+### 4. Lógica de Controle e Estados do Robô
+A lógica de controle do robô é baseada em LiDAR e visão computacional. Os principais estados de operação são:
 
-Você pode controlar o robô usando o teclado, como alternativa ao controle automático:
+- Movendo reto: o robô anda para frente quando não detecta obstáculos nem bandeira.
+- Desviando de obstáculo sem bandeira: desvia de obstáculos sem detectar a imagem da bandeira.
+- Girando parado (obstáculo muito próximo): se algo estiver a menos de 20 cm, gira no próprio eixo.
+- Movendo em direção à bandeira: move-se em direção à bandeira ajustando a centralização.
+- Desviando com bandeira visível: se a bandeira está visível mas há obstáculo, o robô realiza desvio de forma mais suave para não perder a bandeira de vista.
+- Girando para centralizar a bandeira próxima: quando está chegando perto da bandeira, gira parado até alinhar-se horizontalmente com ela.
+- Missão cumprida: ao centralizar e se aproximar da bandeira, o robô para completamente.
 
-```bash
-ros2 run teleop_twist_keyboard teleop_twist_keyboard
-```
-
-#### Instalar `teleop_twist_keyboard` (caso não esteja disponível)
-
-```bash
-sudo apt install ros-humble-teleop-twist-keyboard
-```
-
-> **Importante**: execute **o passo 3 *ou* o passo 4**, dependendo se deseja usar o controle automático ou manual.
+### 5. Autores
+- Giovanna Herculano Tormena - 12674335
+- Vinicius Gustierrez Neves - 14749363
+- Guilherme Rebecchi - 12550107
