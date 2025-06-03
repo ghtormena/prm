@@ -4,8 +4,8 @@
 
   <!-- Definicao de Algumas Contantes -->
 
-  <xacro:property name="base_width" value="0.21"/> <!-- Largura da base -->
-  <xacro:property name="base_length" value="0.42"/> <!-- Comprimento da base -->
+  <xacro:property name="base_width" value="0.11"/> <!-- Largura da base -->
+  <xacro:property name="base_length" value="0.32"/> <!-- Comprimento da base -->
   <xacro:property name="base_height" value="0.18"/> <!-- Altura da base -->
 
   <xacro:property name="wheel_radius" value="0.10"/> <!-- Raio da roda -->

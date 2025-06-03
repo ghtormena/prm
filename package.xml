@@ -3,8 +3,8 @@
 <package format="3">
   <name>prm</name>
   <version>0.0.0</version>
-  <description>Pacote da disciplina SSC0712: Programação de Robôs Móveis</description>
-  <maintainer email="matheus.m.santos@icmc.usp.br">machado</maintainer>
+  <description>Projeto 1 de Programação de Robôs Móveis</description>
+  <maintainer email="giovannatormena@usp.br">giovanna</maintainer>
   <license>Apache-2.0</license>
 
   <test_depend>ament_copyright</test_depend>
