@@ -22,8 +22,10 @@ import tf2_geometry_msgs  # para poder usar tf2_buffer.transform em PoseStamped
 
 
 # intervalo HSV da bandeira
-HSV_MIN = (86, 0, 6)
-HSV_MAX = (94, 255, 255)
+# HSV_MIN = (86, 0, 6)
+# HSV_MAX = (94, 255, 255)
+HSV_MIN = (110, 50, 50)  # Faixa mínima para capturar o azul
+HSV_MAX = (125, 255, 255)
 
 # distância (em metros) abaixo da qual consideramos “meta alcançada” e cancelamos o goal
 GOAL_ARRIVED_THRESHOLD = 0.3
