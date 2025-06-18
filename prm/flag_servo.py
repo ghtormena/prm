@@ -21,8 +21,10 @@ import time
 
 
 # --- ajuste aqui se mudar a cor da bandeira ---
-HSV_MIN = (86, 0, 6)      # azul–esverdeado no seu range
-HSV_MAX = (94, 255, 255)
+# HSV_MIN = (86, 0, 6)      # azul–esverdeado no seu range
+# HSV_MAX = (94, 255, 255)
+HSV_MIN = (110, 50, 50)  # Faixa mínima para capturar o azul
+HSV_MAX = (125, 255, 255)
 # ----------------------------------------------
 
 
