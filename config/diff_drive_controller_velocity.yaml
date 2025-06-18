@@ -8,6 +8,15 @@ controller_manager:
     diff_drive_base_controller:
       type: diff_drive_controller/DiffDriveController
 
+    gripper_controller:
+      type: position_controllers/JointGroupPositionController
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - gripper_extension
+      - right_gripper_joint
+
 diff_drive_base_controller:
   ros__parameters:
     left_wheel_names: ["drivewhl_l_joint"]

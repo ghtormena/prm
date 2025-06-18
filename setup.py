@@ -64,6 +64,7 @@ setup(
             'robo_mapper = prm.robo_mapper:main',
             'flag_servo = prm.flag_servo:main',
             'mission_manager = prm.mission_manager:main',
+            'controle_robo_novo = prm.controle_robo_novo:main',
         ],
     },
 )

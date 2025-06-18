@@ -81,6 +81,17 @@ def generate_launch_description():
         output="screen",
     )
 
+    start_gripper_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        name="spawner_gripper_controller",
+        arguments=["gripper_controller"],
+        output="screen",
+        parameters=[diff_drive_params,
+                    {"use_sim_time": True}],
+    )
+
+
     # Redireciona as mensagens do topico /diff_drive_base_controller/odom para /odom (Conveniencia)
     relay_odom = Node(
         name="relay_odom",
@@ -225,6 +236,12 @@ def generate_launch_description():
             event_handler=OnProcessExit(
                 target_action=load_joint_state_controller, # Após carregar o sistema de leitura das juntas
                 on_exit=[start_diff_controller], # Carrega o sistema de controle das rodas/motores
+            )
+        ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=start_diff_controller,
+                on_exit=[start_gripper_controller],
             )
         ),
         odom_gt,

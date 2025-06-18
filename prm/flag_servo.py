@@ -9,13 +9,15 @@ Quando chega à bandeira publica Bool(True) em /flag_servo_arrived.
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
-
+from std_msgs.msg import Float64MultiArray
 from std_msgs.msg import Bool
 from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan, Image
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+import time
+
 
 
 # --- ajuste aqui se mudar a cor da bandeira ---
@@ -31,6 +33,12 @@ class FlagServo(Node):
         # publishers / subscribers -------------------------------------------------
         self.cmd_vel_pub     = self.create_publisher(Twist, '/cmd_vel', 10)
         self.arrived_pub     = self.create_publisher(Bool, '/flag_servo_arrived', 1)
+        self.gripper_pub = self.create_publisher(
+            Float64MultiArray,
+            '/gripper_controller/commands',
+            10
+        )
+
 
         self.create_subscription(
             Bool, '/flag_servo_enable', self.enable_cb, 1)
@@ -124,6 +132,13 @@ class FlagServo(Node):
     # --------------------------------------------------------------------------- #
     #                                 Main loop
     # --------------------------------------------------------------------------- #
+    def move_gripper(self, extension_pos: float, gripper_pos: float):
+        msg = Float64MultiArray()
+        msg.data = [extension_pos, gripper_pos]
+        self.gripper_pub.publish(msg)
+        self.get_logger().info(f'📤 Enviando gripper_extension={extension_pos}, right_gripper_joint={gripper_pos}')
+
+    
     def control_loop(self):
         """Loop de controle: aproximação visual + LiDAR, garantindo alinhamento antes de finalizar."""
         if not self.enabled:
@@ -152,16 +167,25 @@ class FlagServo(Node):
 
             # parâmetros
             ALIGN_TOL = 10     # pixels de tolerância para centralização
-            DIST_STOP = 0.45  # m para considerar "perto"
+            DIST_STOP = 0.49  # m para considerar "perto"
 
             if self.dist_front < DIST_STOP:
                 # está suficientemente perto → verificar alinhamento
                 if abs(error) < ALIGN_TOL:
                     # alinhado e perto → missão concluída
-                    self.arrived = True
-                    self.arrived_pub.publish(Bool(data=True))
+                    
                     self.get_logger().info('🏁 Bandeira alcançada e alinhada!')
                     self.stop_robot()
+                    # Estende o braço e abre a garra
+                    self.move_gripper(0.0, -0.1)
+                    time.sleep(2.0)
+                    # Fecha a garra
+                    self.move_gripper(-0.8, 0.0)
+                    time.sleep(6.0)
+                    
+                    
+                    self.arrived = True
+                    self.arrived_pub.publish(Bool(data=True))
                     return
                 else:
                     # precisa ajustar alinhamento antes de parar

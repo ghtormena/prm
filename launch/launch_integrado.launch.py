@@ -20,7 +20,8 @@ def generate_launch_description():
 
     # ───────────────────── includes ─────────────────────
     inicia_simulacao = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(world_launch)
+        PythonLaunchDescriptionSource(world_launch),
+        #launch_arguments={'world': 'empty_arena.sdf'}.items()
     )
 
     carrega_robo = IncludeLaunchDescription(
@@ -33,6 +34,7 @@ def generate_launch_description():
         ),
         launch_arguments={
             'use_sim_time': 'true',
+            'slam_params_file': slam_params
         }.items()
     )
 

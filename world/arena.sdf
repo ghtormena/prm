@@ -121,19 +121,19 @@
 
     </include>
 
-    <model name="flag">
+        <model name="flag">
       <static>false</static>
-
+      <plugin filename="ignition-gazebo-label-system" name="ignition::gazebo::systems::Label">
+        <label>25</label>
+      </plugin>
       <link name="flag_link">
-        <!-- Posição da base do objeto no mundo -->
         <pose>1.8 0 0.2 0 0 0</pose>
-
-        <!-- Mastro (cilindro) -->
+        <!-- Mastro -->
         <visual name="pole_visual">
           <pose>0 0 0.2 0 0 0</pose>
           <geometry>
             <cylinder>
-              <radius>0.015</radius>
+              <radius>0.03</radius>
               <length>0.4</length>
             </cylinder>
           </geometry>
@@ -142,32 +142,60 @@
             <diffuse>0.3 0.3 0.3 1</diffuse>
           </material>
         </visual>
-
-        <!-- Bandeira (retângulo fino) -->
+        <!-- Painel da bandeira rotacionado em torno do mastro -->
         <visual name="flag_panel_visual">
-          <pose>0.16 0 0.38 0 0 0</pose>
+          <pose>0.0 -0.15 0.38 0 0 1.5708</pose> <!-- Rotacionado ao redor do mastro -->
           <geometry>
             <box>
               <size>0.3 0.01 0.2</size>
             </box>
           </geometry>
           <material>
-            <ambient>0.8 0 0 1</ambient>
-            <diffuse>1 0 0 1</diffuse>
+            <ambient>0 0 1 1</ambient>
+            <diffuse>0 0 1 1</diffuse>
           </material>
         </visual>
-
-        <!-- Colisão geral como uma caixa envolvendo tudo -->
+        <!-- Colisão -->
         <collision name="flag_collision">
-          <pose>0.08 0 0.2 0 0 0</pose>
+          <pose>0 0 0.2 0 0 0</pose>
           <geometry>
             <box>
-              <size>0.35 0.02 0.4</size>
+              <size>0.06 0.06 0.4 </size>
             </box>
           </geometry>
         </collision>
-
-        <!-- Inércia aproximada -->
+        <!-- Base da bandeira (visual) -->
+        <visual name="base_visual">
+          <pose>0 0 0.005 0 0 0</pose>
+          <geometry>
+            <cylinder>
+              <radius>0.05</radius>
+              <length>0.01</length>
+            </cylinder>
+          </geometry>
+          <material>
+            <ambient>0.1 0.1 0.1 1</ambient>
+            <diffuse>0.2 0.2 0.2 1</diffuse>
+          </material>
+        </visual>
+        <!-- Base da bandeira (colisão) -->
+        <collision name="base_collision">
+          <pose>0 0 0.005 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.01 </size>
+            </box>
+          </geometry>
+        </collision>
+        <collision name="top_base_collision">
+          <pose>0 0 0.30000000000000004 0 0 0</pose>
+          <geometry>
+            <box>
+              <size>0.1 0.1 0.01 </size>
+            </box>
+          </geometry>
+        </collision>
+        <!-- Inércia -->
         <inertial>
           <mass>0.1</mass>
           <inertia>
@@ -175,14 +203,8 @@
             <iyy>0.001</iyy>
             <izz>0.001</izz>
           </inertia>
-        </inertial>      
+        </inertial>
       </link>
-
-      <!-- Defefinindo label da flag como 40 -->
-      <plugin filename="ignition-gazebo-label-system" name="ignition::gazebo::systems::Label">
-        <label>40</label>
-      </plugin>
-
     </model>
 
   </world>
