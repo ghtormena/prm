@@ -22,16 +22,11 @@ def generate_launch_description():
     # robot_description_content = ParameterValue(Command(['xacro ', urdf_path]), value_type=str)
     robot_description_content = Command(["xacro ", urdf_path])
 
-    robot_urdf_final = Command(["xacro ", urdf_path])
-
-    robot_state_publisher_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
-        parameters=[
-            {"robot_description": robot_urdf_final},
-            {"use_sim_time": True}
-        ],
-    )
+    robot_state_publisher_node = Node(package='robot_state_publisher',
+                                      executable='robot_state_publisher',
+                                      parameters=[{
+                                          'robot_description': robot_description_content,
+                                      }])
 
     ld.add_action(robot_state_publisher_node)
 

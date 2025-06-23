@@ -17,6 +17,10 @@ from cv_bridge import CvBridge
 import cv2
 import numpy as np
 import time
+from rcl_interfaces.srv import SetParameters
+from rcl_interfaces.msg import Parameter as ParameterMsg
+from rcl_interfaces.msg import ParameterValue
+from rcl_interfaces.msg import ParameterType
 
 
 
@@ -63,11 +67,41 @@ class FlagServo(Node):
         self.flag_x     = None          # pixel x do alvo
         self.img_w      = None
         self.arrived    = False
+        self.area_bandeira = 0
 
         # para alternar lado de desvio
         self.turn_left  = True
         self.last_turn_stamp = self.get_clock().now()
 
+    def disable_obstacle_layer(self):
+        client = self.create_client(SetParameters, '/local_costmap/local_costmap/set_parameters')
+        
+        if not client.wait_for_service(timeout_sec=2.0):
+            self.get_logger().error('❌ Serviço de parâmetros não disponível!')
+            return
+
+        req = SetParameters.Request()
+        param = ParameterMsg()
+        param.name = 'voxel_layer.enabled'
+        param.value = ParameterValue(type=ParameterType.PARAMETER_BOOL, bool_value=False)
+        req.parameters = [param]
+
+        future = client.call_async(req)
+        # self.get_logger().info('🚧 Desativando obstacle_layer...')
+        # rclpy.spin_until_future_complete(self, future)
+
+        # if future.result() is not None:
+        #     self.get_logger().info('✅ obstacle_layer desativada com sucesso!')
+        # else:
+        #     self.get_logger().error('❌ Falha ao desativar obstacle_layer.')
+        def callback(future):
+            try:
+                result = future.result()
+                self.get_logger().info("✅ obstacle_layer desativada com sucesso!")
+            except Exception as e:
+                self.get_logger().error(f"❌ Erro ao desativar obstacle_layer: {e}")
+
+        future.add_done_callback(callback)
     # --------------------------------------------------------------------------- #
     #                                Callbacks
     # --------------------------------------------------------------------------- #
@@ -83,8 +117,8 @@ class FlagServo(Node):
         if len(msg.ranges) == 0:
             return
 
-        idx_left = list(range(315, 360))
-        idx_right = list(range(0, 45))
+        idx_left = list(range(350, 360)) #mudei, pegava 90 graus da frente
+        idx_right = list(range(0, 11))
 
         distances = [msg.ranges[i] for i in idx_left + idx_right
                      if not np.isnan(msg.ranges[i])]
@@ -123,10 +157,12 @@ class FlagServo(Node):
         if contours:
             largest = max(contours, key=cv2.contourArea)
             M = cv2.moments(largest)
+            maior = max(contours, key=cv2.contourArea)
+            area = cv2.contourArea(maior)
             if M["m00"] > 0:
                 self.flag_x = int(M["m10"] / M["m00"])
                 return
-
+            self.area_bandeira=area
         # nada encontrado
         self.flag_x = None
 
@@ -134,11 +170,11 @@ class FlagServo(Node):
     # --------------------------------------------------------------------------- #
     #                                 Main loop
     # --------------------------------------------------------------------------- #
-    def move_gripper(self, extension_pos: float, gripper_pos: float):
+    def move_gripper(self, extension_pos: float, gripper_pos_left: float, gripper_pos_right: float):
         msg = Float64MultiArray()
-        msg.data = [extension_pos, gripper_pos]
+        msg.data = [extension_pos, gripper_pos_left, gripper_pos_right]
         self.gripper_pub.publish(msg)
-        self.get_logger().info(f'📤 Enviando gripper_extension={extension_pos}, right_gripper_joint={gripper_pos}')
+        self.get_logger().info(f'📤 Enviando gripper_extension={extension_pos}, right_gripper_joint={gripper_pos_right}, left_gripper_joint={gripper_pos_left}')
 
     
     def control_loop(self):
@@ -169,9 +205,22 @@ class FlagServo(Node):
 
             # parâmetros
             ALIGN_TOL = 10     # pixels de tolerância para centralização
-            DIST_STOP = 0.49  # m para considerar "perto"
+            DIST_STOP = 0.30  # m para considerar "perto"
+            DIST_ABRIR_GARRA = 0.69
+            ALIGN_TOL_GARRA = 25
 
-            if self.dist_front < DIST_STOP:
+            if self.dist_front < DIST_ABRIR_GARRA: #and self.area_bandeira > 900:
+                # está suficientemente perto → verificar alinhamento
+                if abs(error) < ALIGN_TOL_GARRA:
+                    # alinhado e perto → missão concluída
+                    #self.stop_robot()
+                    self.get_logger().info('Abrindo garra!')
+                    # Estende o braço e abre a garra
+                    self.move_gripper(0.4, -0.06, 0.06)
+                    #time.sleep(2.0)
+
+
+            if self.dist_front < DIST_STOP: # and self.area_bandeira > 900:
                 # está suficientemente perto → verificar alinhamento
                 if abs(error) < ALIGN_TOL:
                     # alinhado e perto → missão concluída
@@ -179,13 +228,16 @@ class FlagServo(Node):
                     self.get_logger().info('🏁 Bandeira alcançada e alinhada!')
                     self.stop_robot()
                     # Estende o braço e abre a garra
-                    self.move_gripper(0.0, -0.1)
-                    time.sleep(2.0)
+                    # self.move_gripper(0.0, -0.1)
+                    # time.sleep(2.0)
                     # Fecha a garra
-                    self.move_gripper(-0.8, 0.0)
+                    self.get_logger().info('Fechando garra!')
+                    self.move_gripper(-1.2, 0.0, 0.0)
                     time.sleep(6.0)
                     
-                    
+                    # Após pegar a bandeira
+                    self.disable_obstacle_layer()
+
                     self.arrived = True
                     self.arrived_pub.publish(Bool(data=True))
                     return

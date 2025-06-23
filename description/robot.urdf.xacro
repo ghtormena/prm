@@ -5,7 +5,7 @@
   <!-- Definicao de Algumas Contantes -->
 
   <xacro:property name="base_width" value="0.11"/> <!-- Largura da base -->
-  <xacro:property name="base_length" value="0.42"/> <!-- Comprimento da base -->
+  <xacro:property name="base_length" value="0.12"/> <!-- Comprimento da base -->
   <xacro:property name="base_height" value="0.18"/> <!-- Altura da base -->
 
   <xacro:property name="wheel_radius" value="0.10"/> <!-- Raio da roda -->
@@ -535,7 +535,7 @@
 
     <axis xyz="0 1 0"/>
     <limit effort="50.0" lower="-1.57075" upper="0.2" velocity="0.5"/>
-    <origin rpy="0 0 0" xyz="0.2 0 0.1"/>
+    <origin rpy="0 0 0" xyz="0.05 0 0.1"/> 
 
     <parent link="base_link"/>
     <child link="gripper_pole"/>
@@ -544,7 +544,7 @@
   <link name="gripper_pole">
     <visual>
       <geometry>
-        <cylinder length="0.2" radius="0.01"/>
+        <cylinder length="0.1" radius="0.01"/>
       </geometry>
       <origin rpy="0 1.57075 0" xyz="0.1 0 0"/>
     </visual>

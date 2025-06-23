@@ -4,7 +4,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.duration import Duration
-
+from rclpy.qos import qos_profile_sensor_data
 import cv2
 import numpy as np
 import math
@@ -14,7 +14,7 @@ from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry, OccupancyGrid
 from nav2_msgs.action import FollowWaypoints
 from rclpy.action import ActionClient
-from sensor_msgs.msg import Image
+from sensor_msgs.msg import Image, LaserScan
 from std_msgs.msg import Bool
 
 from tf2_ros import Buffer, TransformListener, TransformException
@@ -60,6 +60,7 @@ class MissionManager(Node):
         # assinaturas
         self.create_subscription(Image, '/robot_cam/colored_map', self.camera_cb, 10)
         self.create_subscription(Odometry, '/odom', self.odom_cb, 10)
+        self.create_subscription(LaserScan, '/scan', self.scan_callback, qos_profile_sensor_data)
         self.create_subscription(Bool, '/flag_servo_arrived', self.flag_arrived_cb, 1)
         self.create_subscription(OccupancyGrid, '/map', self.map_cb, 1)
 
@@ -69,12 +70,44 @@ class MissionManager(Node):
         self.return_goal_future  = None
         self.return_goal_handle  = None
 
+        self.distancia_frontal = float('inf')
+        self.distancia_frontal_frentinha = float('inf')
         # timer principal que roda a cada 2 s
         self.timer = self.create_timer(2.0, self.mission_loop)
 
     def map_cb(self, msg: OccupancyGrid):
         """Recebe o OccupancyGrid e armazena em self.map."""
         self.map = msg
+
+    def scan_callback(self, msg: LaserScan):
+        
+        num_ranges = len(msg.ranges)
+        if num_ranges == 0:
+            return
+
+        indices_esq_frente = list(range(325, 360))
+        indices_dir_frente = list(range(0, 36))
+
+        indices_esq_frentinha = list(range(340, 360))
+        indices_dir_frentinha = list(range(0, 21))
+
+        dist_esq = [msg.ranges[i] for i in indices_esq_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
+        dist_dir = [msg.ranges[i] for i in indices_dir_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
+
+        dist_esq_frentinha = [msg.ranges[i] for i in indices_esq_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
+        dist_dir_frentinha = [msg.ranges[i] for i in indices_dir_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
+
+        min_esq = min(dist_esq) if dist_esq else float('inf') # minima distância à esquerda
+        min_dir = min(dist_dir) if dist_dir else float('inf') # mínima distância à direita
+
+        media_esq = np.mean(dist_esq) if dist_esq else 0
+        media_dir = np.mean(dist_dir) if dist_dir else 0
+
+        todos_frontal_frentinha = dist_dir_frentinha+dist_esq_frentinha
+        todos_frontal = dist_esq + dist_dir #distancia total no leque determinado
+        self.distancia_frontal = min(todos_frontal) if todos_frontal else float('inf') #minima distancia em um leque de 180
+        self.distancia_frontal_frentinha = min(todos_frontal_frentinha) if todos_frontal_frentinha else float('inf')
+
 
     def odom_cb(self, msg: Odometry):
         """
@@ -151,7 +184,7 @@ class MissionManager(Node):
         img = self.bridge.imgmsg_to_cv2(msg, 'bgr8')
         hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
         mask = cv2.inRange(hsv, HSV_MIN, HSV_MAX)
-        self.flag_seen = np.count_nonzero(mask) > 1750
+        self.flag_seen = np.count_nonzero(mask) > 1200
 
     def compute_next_frontier_goal(self) -> PoseStamped:
         """
@@ -318,6 +351,10 @@ class MissionManager(Node):
         if self.phase != 'explore':
             return
 
+        # if self.explore_goal_future and self.distancia_frontal_frentinha < 1.2:
+        #     self.explore_goal_future = None
+        #     self.explore_goal_handle = None
+
         # se ainda não enviamos um objetivo
         if self.explore_goal_future is None and self.explore_goal_handle is None:
             if not self.waypoint_client.wait_for_server(timeout_sec=0.1):
@@ -396,12 +433,34 @@ class MissionManager(Node):
         self.return_goal_future.add_done_callback(self.return_response_cb)
 
     def return_response_cb(self, future):
-        handle = future.result()
-        if not handle.accepted:
-            self.get_logger().error('Retorno NÃO aceito pelo servidor!')
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().error('🚫 Goal de retorno não foi aceita!')
             return
-        self.return_goal_handle = handle
-        handle.get_result_async().add_done_callback(self.return_complete_cb)
+
+        self.get_logger().info('✅ Goal de retorno aceita! Aguardando resultado...')
+        
+        # Agora espera o resultado da execução
+        result_future = goal_handle.get_result_async()
+        result_future.add_done_callback(self.return_result_cb)
+
+
+    def return_result_cb(self, future):
+        result = future.result().result
+        self.get_logger().info(f'🏁 Retorno concluído com código: {result.result_code}')
+
+    # def return_response_cb(self, future):
+    #     result = future.result().result
+    #     if result is not None:
+    #         self.get_logger().info(f'Retorno finalizado com status: {result}')
+    #     else:
+    #         self.get_logger().warn('Retorno falhou ou foi cancelado!')
+    #         handle = future.result()
+    #     if not handle.accepted:
+    #         self.get_logger().error('Retorno NÃO aceito pelo servidor!')
+    #         return
+    #     self.return_goal_handle = handle
+    #     handle.get_result_async().add_done_callback(self.return_complete_cb)
 
     def return_complete_cb(self, future):
         self.get_logger().info('🚩 Chegou à base, missão finalizada!')

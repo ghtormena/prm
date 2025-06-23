@@ -46,6 +46,7 @@ class ControleRobo(Node):
         self.bandeira_x = None
         self.largura_img = None
         self.distancia_frontal = float('inf')
+        self.distancia_frontal_frentinha = float('inf')
         self.chegou_na_bandeira = False
         self.area_bandeira = 0
         self.alinhando_bandeira = False
@@ -78,11 +79,19 @@ class ControleRobo(Node):
         indices_esq_frente = list(range(325, 360))
         indices_dir_frente = list(range(0, 36))
 
+        indices_esq_frentinha = list(range(340, 360))
+        indices_dir_frentinha = list(range(0, 21))
+
         dist_esq = [msg.ranges[i] for i in indices_esq_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
         dist_dir = [msg.ranges[i] for i in indices_dir_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
 
+        dist_esq_frentinha = [msg.ranges[i] for i in indices_esq_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
+        dist_dir_frentinha = [msg.ranges[i] for i in indices_dir_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
+
+
         min_esq = min(dist_esq) if dist_esq else float('inf') # minima distância à esquerda
         min_dir = min(dist_dir) if dist_dir else float('inf') # mínima distância à direita
+
         media_esq = np.mean(dist_esq) if dist_esq else 0
         media_dir = np.mean(dist_dir) if dist_dir else 0
 
@@ -92,9 +101,10 @@ class ControleRobo(Node):
         ):
             self.obstaculo_a_frente = False
             return  # mas não ativa desvio
-
+        todos_frontal_frentinha = dist_dir_frentinha+dist_esq_frentinha
         todos_frontal = dist_esq + dist_dir #distancia total no leque determinado
         self.distancia_frontal = min(todos_frontal) if todos_frontal else float('inf') #minima distancia em um leque de 180
+        self.distancia_frontal_frentinha = min(todos_frontal_frentinha) if todos_frontal_frentinha else float('inf')
 
         if self.distancia_frontal < 0.8: #se algum ponto a 180 esta a menos de 1m
             self.obstaculo_a_frente = True
@@ -172,8 +182,8 @@ class ControleRobo(Node):
         if (
             self.bandeira_x is not None and
             self.largura_img and
-            self.area_bandeira > 1500 and
-            self.distancia_frontal < 1.3  # Algo está à frente, provavelmente a própria bandeira
+            self.area_bandeira > 1600 and
+            self.distancia_frontal_frentinha < 1.7  # Algo está à frente, provavelmente a própria bandeira
         ):
             centro = self.largura_img // 2
             erro = self.bandeira_x - centro
@@ -192,8 +202,8 @@ class ControleRobo(Node):
         if (not self.chegou_na_bandeira
             and self.bandeira_x is not None
             and self.largura_img
-            and self.area_bandeira > 1750  # 👈 depende da sua câmera e distância
-            #and self.distancia_frontal < 0.7
+            and self.area_bandeira > 1700  # 👈 depende da sua câmera e distância
+            and self.distancia_frontal_frentinha < 1.52
         ):
             centro = self.largura_img // 2
             erro = abs(self.bandeira_x - centro)
@@ -215,13 +225,13 @@ class ControleRobo(Node):
         if self.bandeira_x is not None and self.largura_img:
             centro = self.largura_img // 2
             erro = self.bandeira_x - centro
-            if self.area_bandeira > 1200 and self.distancia_frontal < 2.0:
+            if self.area_bandeira > 1200 and self.distancia_frontal_frentinha < 2.0:
                 self.obstaculo_a_frente = False  # Ignorar obstáculos
                 twist.linear.x = 0.1
                 twist.angular.z = -0.0005 * erro
-                self.get_logger().info("Movendo em direção à bandeira 🎯")
+                self.get_logger().info(f"Movendo em direção à bandeira 🎯, área:{self.area_bandeira}, frentinha: {self.distancia_frontal_frentinha}")
             elif not self.obstaculo_a_frente:
-                twist.linear.x = 0.1
+                twist.linear.x = 0.2
                 twist.angular.z = -0.0005* erro
                 self.get_logger().info("Movendo em direção à bandeira 🎯")
             else:

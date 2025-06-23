@@ -38,12 +38,17 @@ def generate_launch_description():
         }.items()
     )
 
+    nav2_params = PathJoinSubstitution([
+        FindPackageShare('prm'), 'config', 'nav2_params_custom.yaml'
+    ])
+
     nav2 = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             PathJoinSubstitution([nav2_share, 'launch', 'navigation_launch.py'])
         ),
         launch_arguments={
             'use_sim_time': 'true',
+            'params_file': nav2_params,
         }.items()
     )
 
@@ -51,6 +56,8 @@ def generate_launch_description():
     return LaunchDescription([
         TimerAction(period=2.0, actions=[inicia_simulacao]),
         TimerAction(period=5.0, actions=[carrega_robo]),
-        TimerAction(period=10.0, actions=[nav2]),   
-        TimerAction(period=15.0, actions=[slam_toolbox]),
+        # TimerAction(period=10.0, actions=[nav2]),   
+        # TimerAction(period=15.0, actions=[slam_toolbox]),
+        TimerAction(period=10.0, actions=[slam_toolbox]),
+        TimerAction(period=20.0, actions=[nav2]),   
     ])
