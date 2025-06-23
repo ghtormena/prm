@@ -235,7 +235,7 @@ global_costmap:
       use_sim_time: True
       robot_radius: 0.22
       resolution: 0.05
-      width: 40              # aumenta o mapa pra evitar que o robô inicie fora
+      width: 40               # aumenta o mapa pra evitar que o robô inicie fora
       height: 40
       origin_x: -10.0          # centraliza o mapa no robô
       origin_y: -10.0

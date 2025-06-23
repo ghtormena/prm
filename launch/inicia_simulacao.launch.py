@@ -31,7 +31,7 @@ def generate_launch_description():
 
     # Nome do arquivo do mundo (SDF) a ser carregado
 #    world_file_name = 'arena_lab_v1.sdf'
-    world_file_name = 'arena.sdf'
+    world_file_name = 'arena_cilindros.sdf'
 #    world_file_name = 'spherical_coordinates.sdf'
 
     # Caminho completo para o arquivo do mundo
