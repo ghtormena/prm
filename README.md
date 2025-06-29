@@ -4,10 +4,10 @@
 # Sistema de Navegação & Controle da Missão com ROS 2 🤖
 
 Projeto para o **Trabalho Avaliado 1 – Robôs Móveis**: um robô autônomo que explora o
-ambiente, detecta uma bandeira e se posiciona para capturá-la, usando **ROS 2 Humble**.
+ambiente, detecta uma bandeira, se posiciona para capturá-la e a captura, e então retorna à posição inicial com a bandeira usando **ROS 2 Humble**.
 
 <p align="center">
-  <img src="Images/Read_to_catch.png" alt="Demonstração da missão completa">
+  <img src="Images/capturando_bandeira.png" alt="Demonstração da missão completa">
 </p>
 
 <div align="center">
@@ -47,13 +47,13 @@ mission-ros2/
 ├── models/
 ├── prm/
 │   ├── mission_manager.py # Máquina de estados global
-│   └── flag_servo.py      # Servo-visão/LiDAR
+│   └── flag_servo.py      # Servo-visão/LiDAR, controle da garra
 ├── resource/                # Recursos 3D
 ├── rviz/
 ├── test/
 ├── world/
 ├── images/                
-├── package.xml            # Imagens para o README
+├── package.xml            
 ├── setup.py
 └── README.md
 ```
@@ -64,8 +64,8 @@ mission-ros2/
 
 | Componente (pasta/arquivo) | Tipo | Responsabilidade principal | Tópicos / recursos ROS 2 usados |
 |-----------------------------|------|----------------------------|---------------------------------|
-| **`prm/mission_manager.py`** | Nó Python | Máquina de estados global (Explorar → Econtra Bandeira → Flag_servo (aproximação) → Retorno à base). Salva pose inicial, gera metas ao Nav2 para exploração do mapa, chama flag_servo ao encontrar a bandeira, escuta `/flag_servo_arrived` para voltar à base. | `nav2_msgs/action/FollowWaypoints`, `geometry_msgs/PoseStamped`, `tf2_ros`, `/map`, `/odom` |
-| **`scripts/flag_servo.py`** | Nó Python | Câmera Segmentada + LiDAR: alinha e aproxima-se da bandeira, publica conclusão. | `/robot_cam/colored_map`, `sensor_msgs/LaserScan`, `/cmd_vel`, `/flag_servo_enable`, `/flag_servo_arrived` |
+| **`prm/mission_manager.py`** | Nó Python | Máquina de estados global (Explorar → Encontra Bandeira → Flag_servo (aproximação e captura) → Retorno à base). Salva pose inicial, gera metas ao Nav2 para exploração do mapa, chama flag_servo ao encontrar a bandeira, escuta `/flag_servo_arrived` para voltar à base. | `nav2_msgs/action/FollowWaypoints`, `geometry_msgs/PoseStamped`, `tf2_ros`, `/map`, `/odom` |
+| **`scripts/flag_servo.py`** | Nó Python | Câmera Segmentada + LiDAR: alinha, aproxima-se e captura da bandeira, publica conclusão. | `/robot_cam/colored_map`, `sensor_msgs/LaserScan`, `/cmd_vel`, `/flag_servo_enable`, `/flag_servo_arrived` |
 | **`launch/launch_integrado.launch.py`** | Launch file | Sobe SLAM Toolbox, Nav2 stack, launch `inicializa_simulcao.launch.py` e `carrega_robo.launch.py`. | `ros2 launch` |
 | *`description/robot.urdf.xacro`** | Modelo | Robô diferencial com câmera, LiDAR e IMU; frames TF corretos. | `robot_state_publisher`, `gazebo_ros_pkgs` |
 
@@ -91,7 +91,7 @@ stateDiagram-v2
     direction LR
     [*] --> EXPLORANDO : start
     EXPLORANDO --> SERVO : bandeira_vista
-    SERVO --> RETORNO : alinhado
+    SERVO --> RETORNO : alinhado e caprurado
     RETORNO --> [*] : missão_concluída
 
     %% Anotações de cada estado
@@ -144,7 +144,7 @@ Durante esta etapa, o principal objetivo é explorar o mapa em busca da bandeira
 </p>
 
 ### 2. Detecção robusta da bandeira (BANDEIRA DETECTADA)
-Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descrito, um callback do tópico da câmera de segmentação extrai a imagem e segmenta a região de interesse no espaço de cores HSV que corresponde à cor da bandeira **[(HSV_MIN = (86, 0, 6) HSV_MAX = (94, 255, 255)]**. O frame chega em BGR, é convertido para HSV com `cv_bridge` e recebe **threshold**. Então. uma heurística de área (> 1750 px) é aplicada para evitar falsos-positivos oriundos de ruídos, garantindo que a exploração pare quando a bandeira for encontrada e estiver suficientemente presente na imagem do robô
+Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descrito, um callback do tópico da câmera de segmentação extrai a imagem e segmenta a região de interesse no espaço de cores HSV que corresponde à cor da bandeira **[HSV_MIN = (110, 50, 50) HSV_MAX = (125, 255, 255)]**. O frame chega em BGR, é convertido para HSV com `cv_bridge` e recebe **threshold**. Então. uma heurística de área (> 1750 px) é aplicada para evitar falsos-positivos oriundos de ruídos, garantindo que a exploração pare quando a bandeira for encontrada e estiver suficientemente presente na imagem do robô
 
 
 <p align="center">
@@ -152,12 +152,12 @@ Enquanto faz-se a exploração e o mapeamento por meio do algoritmo acima descri
 </p>
 
 ### 3. Aproximação da bandeira (NAVIGANDO_PARA_BANDEIRA E POSICIONANDO_PARA_COLETA)
-Esta parte da estratégia é controlada pelo nó `flag_servo`, que fica aguarando a publicação de "true" no tópico "/flag_servo_enable' para iniciar a busca da bandeira. O robô então extrai a imagem da bandeira segmentada da mesma forma que na estratégia anterior, calcula o centróide da bandeira na imagem e faz um controle proporcional para manter o alinhamento com a bandeira, enquanto verifica a distância dos feixes frontais do LIDAR.
+Esta parte da estratégia é controlada pelo nó `flag_servo`, que fica aguarando a publicação de "true" no tópico "/flag_servo_enable' para iniciar a busca da bandeira. O robô então extrai a imagem da bandeira segmentada da mesma forma que na estratégia anterior, calcula o centróide da bandeira na imagem e faz um controle proporcional para manter o alinhamento com a bandeira, enquanto verifica a distância dos feixes frontais do LIDAR. Ao atingir um bom alinhamento e proximidade suficiente, captura a bandeira.
 Resumo do algoritmo:
 Enquanto o contorno está presente:  
 * **ω** proporcional ao erro do centróide (pixels).  
 * **v** decrescente com a média dos 90 ° frontais do LiDAR (*range-keeper*).  
-* Quando `|erro| < 10 px` **e** distância `< 0.35 m` → Entra num alinhamento final, para garantir que está completamente alinhado à bandeira.
+* Quando `|erro| < 10 px` **e** distância `< 0.35 m` → Entra num alinhamento final, para garantir que está completamente alinhado à bandeira, e então a captura.
 * publica `/flag_servo_arrived`.
 
 ### 4. Retorno à base  
@@ -167,7 +167,6 @@ O primeiro TF `map → odom` capturado vira `home_pose` para voltar para a base.
 <p align="center">
   <img src="Images/Returning_base.png" alt="Exemplo de rota de exploração">
 </p>
-
 ---
 
 ## Arquitetura & algoritmos ⚙️
@@ -226,13 +225,40 @@ Esta seção descreve como os requisitos propostos para o trabalho foram integra
   - Controle proporcional de rotação com base na posição da bandeira na imagem.
   - Controle de avanço baseado nas leituras frontais do **LiDAR**.
 - Quando a bandeira está centralizada e próxima, o robô sinaliza a conclusão da etapa de aproximação.
+- Assim, posiciona a garra para captura. 
+
+
+
+### ✅ Captura da bandeira
+- O controle do gripper é feito tanto em flag_servo.py (para captura) quando em mission_manager.py (para depósito da bandeira na posição inicial).
+
+<p align="center">
+  <img src="Images/capturando_bandeira.png" alt="Capturando a bandeira">
+</p>
+
+<p align="center">
+  <img src="Images/levantando_bandeira.png" alt="Levantando a bandeira">
+</p>
+
+<p align="center">
+  <img src="Images/locomovendo_bandeira.png" alt="Locomoção retronando à base e segurando a bandeira">
+</p>
+
+<p align="center">
+  <img src="Images/chegando_base_com_bandeira.png" alt="Chegando à base com a bandeira">
+</p>
+
+<p align="center">
+  <img src="Images/depositando_bandeira.png" alt="Depositando bandeira na posição inicial">
+</p>
 
 ### ✅ Execução Autônoma da Missão
 - Uma **máquina de estados** controla todas as etapas da missão:
   1. Exploração do ambiente.
   2. Detecção da bandeira.
   3. Aproximação com servo-visão.
-  4. Retorno automático à base (posição inicial).
+  4. Captura da bandeira.
+  5. Retorno automático à base (posição inicial).
 - A missão é completamente autônoma, sem necessidade de intervenção manual.
 
 ---
@@ -243,8 +269,8 @@ Como melhoria adicional ao projeto, realizamos uma redução proporcional nas di
 
 | Parâmetro        | Valor Original | Valor Atual |
 |------------------|----------------|-------------|
-| `base_width`     | 0.31 m         | **0.155 m** |
-| `base_length`    | 0.42 m         | **0.21 m**  |
+| `base_width`     | 0.31 m         | **0.11 m** |
+| `base_length`    | 0.42 m         | **0.12 m**  |
 | `wheel_ygap`     | 0.025 m        | **0.0125 m**|
 | `wheel_xoff`     | 0.12 m         | **0.06 m**  |
 | `caster_xoff`    | 0.14 m         | **0.07 m**  |
@@ -302,6 +328,6 @@ Abra uma **Issue** para discutir melhorias ou envie o **PR** diretamente.
 | Nome                  | Número USP | GitHub                                 |
 |-----------------------|------------|----------------------------------------|
 | Vinicius Gustierrez Neves      | 14749363   | [@Vinicius-GN](https://github.com/Vinicius-GN)|
-| Giovanna Herculano Tormena      | 12674335   | |
-| Guilheme Rebecche         | 12550107   | |
+| Giovanna Herculano Tormena      | 12674335   |[@ghtormena](https://github.com/ghtormena)| |
+| Guilheme Rebecchi         | 12550107   | |
 
