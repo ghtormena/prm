@@ -3,7 +3,7 @@
 <!-- ===================================================================== -->
 # Sistema de Navegação & Controle da Missão com ROS 2 🤖
 
-Projeto para o **Trabalho Avaliado 1 – Robôs Móveis**: um robô autônomo que explora o
+Projeto para o **Trabalho Avaliado 2 – Robôs Móveis**: um robô autônomo que explora o
 ambiente, detecta uma bandeira, se posiciona para capturá-la e a captura, e então retorna à posição inicial com a bandeira usando **ROS 2 Humble**.
 
 <p align="center">
