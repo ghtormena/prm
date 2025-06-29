@@ -216,7 +216,7 @@ class FlagServo(Node):
                     #self.stop_robot()
                     self.get_logger().info('Abrindo garra!')
                     # Estende o braço e abre a garra
-                    self.move_gripper(0.4, -0.06, 0.06)
+                    self.move_gripper(0.6, -0.06, 0.06)
                     #time.sleep(2.0)
 
 
@@ -232,7 +232,7 @@ class FlagServo(Node):
                     # time.sleep(2.0)
                     # Fecha a garra
                     self.get_logger().info('Fechando garra!')
-                    self.move_gripper(-1.2, 0.0, 0.0)
+                    self.move_gripper(-1.3, 0.0, 0.0)
                     time.sleep(6.0)
                     
                     # Após pegar a bandeira

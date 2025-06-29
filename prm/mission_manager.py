@@ -9,7 +9,8 @@ import cv2
 import numpy as np
 import math
 from cv_bridge import CvBridge
-
+from std_msgs.msg import Float64MultiArray
+import time
 from geometry_msgs.msg import PoseStamped
 from nav_msgs.msg import Odometry, OccupancyGrid
 from nav2_msgs.action import FollowWaypoints
@@ -63,6 +64,11 @@ class MissionManager(Node):
         self.create_subscription(LaserScan, '/scan', self.scan_callback, qos_profile_sensor_data)
         self.create_subscription(Bool, '/flag_servo_arrived', self.flag_arrived_cb, 1)
         self.create_subscription(OccupancyGrid, '/map', self.map_cb, 1)
+        self.gripper_pub = self.create_publisher(
+            Float64MultiArray,
+            '/gripper_controller/commands',
+            10
+        )
 
         # controle de “futuro / handle” para o goal de exploração e retorno
         self.explore_goal_future = None
@@ -443,11 +449,29 @@ class MissionManager(Node):
         # Agora espera o resultado da execução
         result_future = goal_handle.get_result_async()
         result_future.add_done_callback(self.return_result_cb)
+        self.fallback_timer = self.create_timer(35.0, self.return_result_cb)
 
 
-    def return_result_cb(self, future):
-        result = future.result().result
-        self.get_logger().info(f'🏁 Retorno concluído com código: {result.result_code}')
+    # def return_result_cb(self, future):
+    #     result = future.result().result
+    #     self.get_logger().info(f'🏁 Retorno concluído com código: {result.result_code}')
+
+    def move_gripper(self, extension_pos: float, gripper_pos_left: float, gripper_pos_right: float):
+        msg = Float64MultiArray()
+        msg.data = [extension_pos, gripper_pos_left, gripper_pos_right]
+        self.gripper_pub.publish(msg)
+        self.get_logger().info(f'📤 Enviando gripper_extension={extension_pos}, right_gripper_joint={gripper_pos_right}, left_gripper_joint={gripper_pos_left}')
+
+    def return_result_cb(self):
+        self.get_logger().info('🚩 Chegou à base, missão finalizada!')
+        self.get_logger().info('Descendo garra!')
+        self.move_gripper(0.0, 0.0, 0.0)
+        time.sleep(6.0)
+        self.get_logger().info('Abrindo garra!')
+        # Estende o braço e abre a garra
+        self.move_gripper(0.0, -0.06, 0.06)
+        time.sleep(6.0)
+
 
     # def return_response_cb(self, future):
     #     result = future.result().result
