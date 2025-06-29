@@ -287,7 +287,7 @@ Além disso, o sistema já está preparado para **retornar automaticamente à ba
 ```bash
 # 1. Clonar
 cd ~/ros2_ws/src
-git clone https://github.com/Vinicius-GN/prm/
+git clone https://github.com/ghtormena/prm/
 
 # 2. Compilar
 cd ~/ros2_ws
@@ -314,6 +314,35 @@ ros2 run prm mission_manager
 
 ```
 
+## Rodando nos mapas maiores:
+Após alterar o scpript do inicia_simulacao.launch.py para incializar os mundos maiores (arena_cilindros e arena_paredes), basta rodar os scripts a seguir:
+
+```bash
+# 1. Clonar
+cd ~/ros2_ws/src
+git clone https://github.com/ghtormena/prm/
+
+# 2. Compilar
+cd ~/ros2_ws
+source /opt/ros/humble/setup.bash
+rosdep install --from-paths src --ignore-src -r -y
+colcon build
+source install/setup.sh
+
+# 3. Executar simulação
+# Terminal A — mundo + robô
+ros2 launch prm launch_integrado.launch.py
+
+# Terminal D — Lógica do Servo
+source install/setup.sh
+ros2 run prm flag_servo
+
+# Terminal C — Nav2 + missão
+source install/setup.sh
+ros2 run prm mission_manager_explorer
+```
+
+Em caso de enventuais problemas com o algoritmo, entrar em contato pelo e-mail viniciusgustierrez@usp.br
 ---
 
 ## Contribuição 🤝
