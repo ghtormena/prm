@@ -45,7 +45,8 @@ def generate_launch_description():
         package="robot_state_publisher",
         executable="robot_state_publisher",
         parameters=[
-            {"robot_description": robot_urdf_final}
+            {"robot_description": robot_urdf_final},
+            {"use_sim_time": True}
         ],
     )
 
@@ -79,6 +80,17 @@ def generate_launch_description():
         parameters=[diff_drive_params],
         output="screen",
     )
+
+    start_gripper_controller = Node(
+        package="controller_manager",
+        executable="spawner",
+        name="spawner_gripper_controller",
+        arguments=["gripper_controller"],
+        output="screen",
+        parameters=[diff_drive_params,
+                    {"use_sim_time": True}],
+    )
+
 
     # Redireciona as mensagens do topico /diff_drive_base_controller/odom para /odom (Conveniencia)
     relay_odom = Node(
@@ -124,6 +136,7 @@ def generate_launch_description():
         name="rviz2",
         output="screen",
         arguments=["-d", rviz_config_file],  # Define o arquivo de configuração a ser carregado
+        parameters=[{"use_sim_time": True}],
     )
 
     # ------------------------------------------------------
@@ -138,7 +151,8 @@ def generate_launch_description():
             "-name", "prm_robot",          # Nome da entidade no simulador
             "-topic", "robot_description", # Descrição do robô a ser utilizada
             "-z", "1.0",                   # Altura inicial do robô
-            "-x", "-2.0",                  # Posição no eixo X
+            "-x", "-2.0", 
+            #"-y", "-0.5",                                 # Posição no eixo X
             "--ros-args", "--log-level", "warn"
         ],
         parameters=[{"use_sim_time": True}],  # Usa o tempo simulado
@@ -182,6 +196,7 @@ def generate_launch_description():
         name="odom_gt",
         arguments="",
         output="screen",
+        parameters=[{"use_sim_time": True}],
     )
 
 #  Nodo que publica o mapa
@@ -191,6 +206,7 @@ def generate_launch_description():
         name="robo_mapper",
         arguments="",
         output="screen",
+        parameters=[{"use_sim_time": True}],
     )
 
 #  Casos vocês queiram carregar o controle do robô junto:
@@ -221,6 +237,12 @@ def generate_launch_description():
             event_handler=OnProcessExit(
                 target_action=load_joint_state_controller, # Após carregar o sistema de leitura das juntas
                 on_exit=[start_diff_controller], # Carrega o sistema de controle das rodas/motores
+            )
+        ),
+        RegisterEventHandler(
+            event_handler=OnProcessExit(
+                target_action=start_diff_controller,
+                on_exit=[start_gripper_controller],
             )
         ),
         odom_gt,

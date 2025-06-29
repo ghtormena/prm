@@ -18,14 +18,14 @@ class GroundTruthOdomPublisher(Node):
         self.create_subscription(Pose, '/model/prm_robot/pose', self.pose_callback, 10)
 
         # Publicador de odometria ground truth
-        self.odom_pub = self.create_publisher(Odometry, '/odom_gt', 10)
+        self.odom_pub = self.create_publisher(Odometry, '/odom', 10)
 
         # Broadcaster de TF: odom_gt -> base_link
         self.tf_broadcaster = TransformBroadcaster(self)
 
         # Base frame
         self.base_frame = 'base_link'
-        self.odom_frame = 'odom_gt'
+        self.odom_frame = 'odom'
 
     def pose_callback(self, msg: Pose):
         now = self.get_clock().now().to_msg()

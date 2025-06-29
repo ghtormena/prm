@@ -1,6 +1,6 @@
 controller_manager:
   ros__parameters:
-    update_rate: 50  # Hz
+    update_rate: 30  # Hz
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
@@ -8,12 +8,22 @@ controller_manager:
     diff_drive_base_controller:
       type: diff_drive_controller/DiffDriveController
 
+    gripper_controller:
+      type: position_controllers/JointGroupPositionController
+
+gripper_controller:
+  ros__parameters:
+    joints:
+      - gripper_extension
+      - right_gripper_joint
+      - left_gripper_joint
+
 diff_drive_base_controller:
   ros__parameters:
     left_wheel_names: ["drivewhl_l_joint"]
     right_wheel_names: ["drivewhl_r_joint"]
 
-    wheel_separation: 0.4
+    wheel_separation: 0.2
     #wheels_per_side: 1  # actually 2, but both are controlled by 1 signal
     wheel_radius: 0.1
 
@@ -52,9 +62,9 @@ diff_drive_base_controller:
     angular.z.has_velocity_limits: true
     angular.z.has_acceleration_limits: true
     angular.z.has_jerk_limits: false
-    angular.z.max_velocity: 1.0
-    angular.z.min_velocity: -1.0
-    angular.z.max_acceleration: 1.0
-    angular.z.min_acceleration: -1.0
+    angular.z.max_velocity: 4.0
+    angular.z.min_velocity: -4.0
+    angular.z.max_acceleration: 2.0
+    angular.z.min_acceleration: -2.0
     angular.z.max_jerk: 0.0
     angular.z.min_jerk: 0.0

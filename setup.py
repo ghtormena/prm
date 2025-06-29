@@ -62,7 +62,13 @@ setup(
             'ground_truth_odometry = prm.ground_truth_odometry:main',
             'controle_robo = prm.controle_robo:main',
             'robo_mapper = prm.robo_mapper:main',
-            'controle_robo_novo = prm.controle_robo_novo:main'
+            'flag_servo = prm.flag_servo:main',
+            'mission_manager = prm.mission_manager:main',
+            'mission_manager_new = prm.mission_manager_new:main',
+            'mission_manager_cilindros = prm.mission_manager_cilindros:main',
+            'mission_manager_paredes = prm.mission_manager_paredes:main',
+            'mission_manager_explorer = prm.mission_manager_explorer:main',
+            'controle_robo_novo = prm.controle_robo_novo:main',
         ],
     },
 )

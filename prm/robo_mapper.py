@@ -59,7 +59,7 @@ class RoboMapper(Node):
         static_tf = TransformStamped()
         static_tf.header.stamp = self.get_clock().now().to_msg()
         static_tf.header.frame_id = "map"
-        static_tf.child_frame_id = "odom_gt"
+        static_tf.child_frame_id = "odom"
         static_tf.transform.translation.x = 0.0
         static_tf.transform.translation.y = 0.0
         static_tf.transform.translation.z = 0.0

@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 import rclpy
 from rclpy.node import Node
-
+import time
 from sensor_msgs.msg import LaserScan, Imu, Image
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import Twist
-
+from rclpy.qos import qos_profile_sensor_data
 from cv_bridge import CvBridge
 import cv2
 import numpy as np
+from std_msgs.msg import Float64MultiArray
 
 # --- ajuste aqui se mudar a cor da bandeira ---
-HSV_MIN = (86, 0, 6)      # azul–esverdeado no seu range
-HSV_MAX = (94, 255, 255)
+# HSV_MIN = (86, 0, 6)      # azul–esverdeado no seu range
+# HSV_MAX = (94, 255, 255)
+# HSV_MIN = (0, 200, 200)  # Ajuste para o tom de azul mais realista
+# HSV_MAX = (16, 255, 255)  # Faixa maior para saturação e valor
+HSV_MIN = (110, 50, 50)  # Faixa mínima para capturar o azul
+HSV_MAX = (125, 255, 255)  # Faixa máxima para o azul mais intenso
+
 # ----------------------------------------------
 
 
@@ -21,8 +27,13 @@ class ControleRobo(Node):
         super().__init__('controle_robo_novo')
 
         self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        self.gripper_pub = self.create_publisher(
+            Float64MultiArray,
+            '/gripper_controller/commands',
+            10
+        )
 
-        self.create_subscription(LaserScan, '/scan', self.scan_callback, 10)
+        self.create_subscription(LaserScan, '/scan', self.scan_callback, qos_profile_sensor_data)
         self.create_subscription(Imu, '/imu', self.imu_callback, 10)
         self.create_subscription(Odometry, '/odom', self.odom_callback, 10)
         self.create_subscription(Image, '/robot_cam/colored_map', self.camera_callback, 10)
@@ -35,6 +46,7 @@ class ControleRobo(Node):
         self.bandeira_x = None
         self.largura_img = None
         self.distancia_frontal = float('inf')
+        self.distancia_frontal_frentinha = float('inf')
         self.chegou_na_bandeira = False
         self.area_bandeira = 0
         self.alinhando_bandeira = False
@@ -67,11 +79,19 @@ class ControleRobo(Node):
         indices_esq_frente = list(range(325, 360))
         indices_dir_frente = list(range(0, 36))
 
+        indices_esq_frentinha = list(range(340, 360))
+        indices_dir_frentinha = list(range(0, 21))
+
         dist_esq = [msg.ranges[i] for i in indices_esq_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
         dist_dir = [msg.ranges[i] for i in indices_dir_frente if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
 
+        dist_esq_frentinha = [msg.ranges[i] for i in indices_esq_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à esquerda em um vetor
+        dist_dir_frentinha = [msg.ranges[i] for i in indices_dir_frentinha if not np.isnan(msg.ranges[i])] #coloca as distâncias à direita em um vetor
+
+
         min_esq = min(dist_esq) if dist_esq else float('inf') # minima distância à esquerda
         min_dir = min(dist_dir) if dist_dir else float('inf') # mínima distância à direita
+
         media_esq = np.mean(dist_esq) if dist_esq else 0
         media_dir = np.mean(dist_dir) if dist_dir else 0
 
@@ -81,9 +101,10 @@ class ControleRobo(Node):
         ):
             self.obstaculo_a_frente = False
             return  # mas não ativa desvio
-
+        todos_frontal_frentinha = dist_dir_frentinha+dist_esq_frentinha
         todos_frontal = dist_esq + dist_dir #distancia total no leque determinado
         self.distancia_frontal = min(todos_frontal) if todos_frontal else float('inf') #minima distancia em um leque de 180
+        self.distancia_frontal_frentinha = min(todos_frontal_frentinha) if todos_frontal_frentinha else float('inf')
 
         if self.distancia_frontal < 0.8: #se algum ponto a 180 esta a menos de 1m
             self.obstaculo_a_frente = True
@@ -148,6 +169,12 @@ class ControleRobo(Node):
     def odom_callback(self, msg: Odometry):
         pass
 
+    def move_gripper(self, extension_pos: float, gripper_pos: float):
+        msg = Float64MultiArray()
+        msg.data = [extension_pos, gripper_pos]
+        self.gripper_pub.publish(msg)
+        self.get_logger().info(f'📤 Enviando gripper_extension={extension_pos}, right_gripper_joint={gripper_pos}')
+
     def move_robot(self):
         twist = Twist()
 
@@ -155,13 +182,13 @@ class ControleRobo(Node):
         if (
             self.bandeira_x is not None and
             self.largura_img and
-            self.area_bandeira > 1300 and
-            self.distancia_frontal < 1.0  # Algo está à frente, provavelmente a própria bandeira
+            self.area_bandeira > 1600 and
+            self.distancia_frontal_frentinha < 1.7  # Algo está à frente, provavelmente a própria bandeira
         ):
             centro = self.largura_img // 2
             erro = self.bandeira_x - centro
 
-            if abs(erro) > 40:  # ainda está desalinhado
+            if abs(erro) > 10:  # ainda está desalinhado
                 self.alinhando_bandeira = True
                 self.obstaculo_a_frente = False
                 twist.linear.x = 0.0
@@ -175,26 +202,36 @@ class ControleRobo(Node):
         if (not self.chegou_na_bandeira
             and self.bandeira_x is not None
             and self.largura_img
-            and self.area_bandeira > 1750  # 👈 depende da sua câmera e distância
+            and self.area_bandeira > 1700  # 👈 depende da sua câmera e distância
+            and self.distancia_frontal_frentinha < 1.52
         ):
             centro = self.largura_img // 2
             erro = abs(self.bandeira_x - centro)
 
-            if erro < 40:
+            if erro < 10:
                 self.chegou_na_bandeira = True
                 self.get_logger().info(f"🏁 Missão cumprida! Bandeira centralizada e próxima (área={self.area_bandeira:.0f})")
 
         if self.chegou_na_bandeira:
             twist = Twist()
+            self.move_gripper(0.0, -0.1)
+            time.sleep(2.0)
+            # Fecha a garra
+            self.move_gripper(-0.8, 0.0)
+            time.sleep(6.0)
             self.cmd_vel_pub.publish(twist)
             return
 
         if self.bandeira_x is not None and self.largura_img:
             centro = self.largura_img // 2
             erro = self.bandeira_x - centro
-
-            if not self.obstaculo_a_frente:
+            if self.area_bandeira > 1200 and self.distancia_frontal_frentinha < 2.0:
+                self.obstaculo_a_frente = False  # Ignorar obstáculos
                 twist.linear.x = 0.1
+                twist.angular.z = -0.0005 * erro
+                self.get_logger().info(f"Movendo em direção à bandeira 🎯, área:{self.area_bandeira}, frentinha: {self.distancia_frontal_frentinha}")
+            elif not self.obstaculo_a_frente:
+                twist.linear.x = 0.2
                 twist.angular.z = -0.0005* erro
                 self.get_logger().info("Movendo em direção à bandeira 🎯")
             else:
@@ -220,83 +257,8 @@ class ControleRobo(Node):
                     twist.angular.z = 0.2 if self.girar_para_esquerda else -0.2
                     self.get_logger().info("Desviando de obstáculo sem bandeira 👀")
 
-        # # ---------- MODO BUSCA ----------
-        # agora = self.get_clock().now()
-        # tempo_sem_bandeira = (agora - self.tempo_ultima_bandeira).nanoseconds / 1e9
-
-        # if self.bandeira_x is None and not self.obstaculo_a_frente and self.bandeira_ja_foi_vista and tempo_sem_bandeira > 2.0:
-        #     twist.linear.x = 0.0
-        #     twist.angular.z = 0.5  # gira parado procurando a bandeira
-        #     self.get_logger().info("🔍 Modo busca: girando pra procurar a bandeira")
-
         self.cmd_vel_pub.publish(twist)
 
-    # def move_robot(self):
-    #     twist = Twist()
-
-    #     # ✅ Ignorar obstáculo se a bandeira estiver centralizada e próxima
-    #     if (
-    #         self.obstaculo_a_frente and 
-    #         self.bandeira_x is not None and 
-    #         self.largura_img and 
-    #         self.area_bandeira > 1000
-    #     ):
-    #         centro = self.largura_img // 2
-    #         erro = abs(self.bandeira_x - centro)
-    #         if erro < 50:
-    #             self.obstaculo_a_frente = False
-    #             self.get_logger().info("✅ Ignorando obstáculo (bandeira centralizada e próxima)")
-
-    #     # Verifica se chegou na bandeira
-    #     if (
-    #         not self.chegou_na_bandeira and
-    #         self.bandeira_x is not None and
-    #         self.largura_img and
-    #         self.area_bandeira > 1500
-    #     ):
-    #         centro = self.largura_img // 2
-    #         erro = abs(self.bandeira_x - centro)
-    #         if erro < 40:
-    #             self.chegou_na_bandeira = True
-    #             self.get_logger().info(f"🏁 Missão cumprida! Bandeira centralizada e próxima (área={self.area_bandeira:.0f})")
-
-    #     if self.chegou_na_bandeira:
-    #         twist = Twist()
-    #         self.cmd_vel_pub.publish(twist)
-    #         return
-
-    #     if self.bandeira_x is not None and self.largura_img:
-    #         centro = self.largura_img // 2
-    #         erro = self.bandeira_x - centro
-
-    #         if not self.obstaculo_a_frente:
-    #             twist.linear.x = 0.1
-    #             twist.angular.z = -0.0005 * erro
-    #             self.get_logger().info("Movendo em direção à bandeira 🎯")
-    #         else:
-    #             if self.distancia_frontal < 0.3:
-    #                 twist.linear.x = 0.0
-    #                 twist.angular.z = 0.2 if self.girar_para_esquerda else -0.3
-    #                 self.get_logger().info("⚠️ Objeto MUITO próximo! Girando parado")
-    #             else:
-    #                 twist.linear.x = 0.05
-    #                 twist.angular.z = 0.2 if self.girar_para_esquerda else -0.3
-    #                 self.get_logger().info("Desviando de obstáculo durante perseguição 🚧")
-    #     else:
-    #         if not self.obstaculo_a_frente:
-    #             twist.linear.x = 0.1
-    #             self.get_logger().info("Movendo reto 🚶")
-    #         else:
-    #             if self.distancia_frontal < 0.2:
-    #                 twist.linear.x = 0.0
-    #                 twist.angular.z = 0.2 if self.girar_para_esquerda else -0.3
-    #                 self.get_logger().info("⚠️ Objeto MUITO próximo! Girando parado (sem bandeira)")
-    #             else:
-    #                 twist.linear.x = 0.1
-    #                 twist.angular.z = 0.2 if self.girar_para_esquerda else -0.3
-    #                 self.get_logger().info("Desviando de obstáculo sem bandeira 👀")
-
-    #     self.cmd_vel_pub.publish(twist)
 
 
 def main(args=None):
